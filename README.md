@@ -73,6 +73,12 @@ defmodule MyApp.Chores.UserBackfill do
     # Your logic here
     :ok
   end
+
+  # Optional: Add custom validations using Ecto.Changeset
+  @impl ObanChore.Worker
+  def custom_changeset(changeset) do
+    Ecto.Changeset.validate_number(changeset, :user_id, greater_than: 0)
+  end
 end
 ```
 

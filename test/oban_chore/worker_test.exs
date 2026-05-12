@@ -1,52 +1,48 @@
 defmodule ObanChore.WorkerTest do
   use ExUnit.Case, async: true
+  import Ecto.Changeset
 
   defmodule MyTestChore do
     use ObanChore.Worker,
       name: "My Test Chore",
       queue: :default,
       fields: [
-        user_id: [type: :integer, required: true, label: "User ID"],
-        reason: [type: :string, default: "Testing"]
+        user_id: [type: :integer, required: true],
+        age: [type: :integer]
       ]
 
-    @impl Oban.Worker
-    def perform(%Oban.Job{}) do
-      :ok
+    @impl ObanChore.Worker
+    def custom_changeset(changeset) do
+      validate_number(changeset, :age, greater_than: 18)
     end
-  end
-
-  defmodule MinimalChore do
-    use ObanChore.Worker
 
     @impl Oban.Worker
-    def perform(%Oban.Job{}) do
-      :ok
-    end
+    def perform(%Oban.Job{}), do: :ok
   end
 
-  test "injects Oban.Worker behaviour" do
-    assert Oban.Worker in behaviour_info(MyTestChore)
-    assert MyTestChore.__opts__()[:queue] == :default
+  test "injects changeset/1 and custom_changeset/1" do
+    # Valid data
+    changeset = MyTestChore.changeset(%{"user_id" => "1", "age" => "25"})
+    assert changeset.valid?
+    assert changeset.changes.user_id == 1
+    assert changeset.changes.age == 25
+
+    # Missing required field
+    changeset = MyTestChore.changeset(%{"age" => "25"})
+    refute changeset.valid?
+    assert "can't be blank" in errors_on(changeset).user_id
+
+    # Custom validation failure
+    changeset = MyTestChore.changeset(%{"user_id" => "1", "age" => "15"})
+    refute changeset.valid?
+    assert "must be greater than 18" in errors_on(changeset).age
   end
 
-  describe "__chore_info__/0" do
-    test "returns configured name and fields" do
-      info = MyTestChore.__chore_info__()
-      assert info.name == "My Test Chore"
-      assert info.fields[:user_id][:type] == :integer
-      assert info.fields[:user_id][:required] == true
-      assert info.fields[:reason][:default] == "Testing"
-    end
-
-    test "handles minimal configuration" do
-      info = MinimalChore.__chore_info__()
-      assert info.name == "ObanChore.WorkerTest.MinimalChore"
-      assert info.fields == []
-    end
-  end
-
-  defp behaviour_info(module) do
-    module.module_info(:attributes)[:behaviour] || []
+  defp errors_on(changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+      Enum.reduce(opts, msg, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
   end
 end

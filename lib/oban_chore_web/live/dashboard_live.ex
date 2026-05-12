@@ -29,8 +29,8 @@ defmodule ObanChoreWeb.DashboardLive do
               <div style="margin-bottom: 1rem;">
                 <label style="display: block; font-weight: bold;"><%= Keyword.get(opts, :label, field) %></label>
                 <%= render_input(field, opts, @form) %>
-                <%= if error = @errors[field] do %>
-                  <span style="color: red; font-size: 0.8rem;"><%= error %></span>
+                <%= for error <- @form[field].errors do %>
+                  <span style="color: red; font-size: 0.8rem; display: block;"><%= format_error(error) %></span>
                 <% end %>
               </div>
             <% end %>
@@ -57,8 +57,9 @@ defmodule ObanChoreWeb.DashboardLive do
 
   defp render_input(field, opts, form) do
     type = Keyword.get(opts, :type, :string)
-    name = "args[#{field}]"
-    value = form.params[to_string(field)] || Keyword.get(opts, :default)
+    field_data = form[field]
+    name = field_data.name
+    value = field_data.value
     assigns = %{name: name, value: value}
 
     case type do
@@ -73,6 +74,12 @@ defmodule ObanChoreWeb.DashboardLive do
     end
   end
 
+  defp format_error({msg, opts}) do
+    Enum.reduce(opts, msg, fn {key, value}, acc ->
+      String.replace(acc, "%{#{key}}", to_string(value))
+    end)
+  end
+
   @impl true
   def mount(_params, _session, socket) do
     chores = ObanChore.Plugin.get_chores()
@@ -81,8 +88,7 @@ defmodule ObanChoreWeb.DashboardLive do
      assign(socket,
        chores: chores,
        selected_chore: nil,
-       form: to_form(%{}),
-       errors: %{},
+       form: to_form(%{}, as: :args),
        logs: [],
        active_job_id: nil
      )}
@@ -102,8 +108,7 @@ defmodule ObanChoreWeb.DashboardLive do
     {:noreply,
      assign(socket,
        selected_chore: chore,
-       form: to_form(defaults),
-       errors: %{},
+       form: to_form(chore.module.changeset(defaults), as: :args),
        logs: [],
        active_job_id: nil
      )}
@@ -111,33 +116,37 @@ defmodule ObanChoreWeb.DashboardLive do
 
   @impl true
   def handle_event("validate", %{"args" => params}, socket) do
-    {:noreply, assign(socket, form: to_form(params), errors: %{})}
+    changeset =
+      socket.assigns.selected_chore.module.changeset(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, form: to_form(changeset, as: :args))}
   end
 
   @impl true
   def handle_event("execute", %{"args" => params}, socket) do
     chore = socket.assigns.selected_chore
-    casted_args = ObanChore.Params.cast(params, chore.fields)
+    changeset = chore.module.changeset(params)
 
-    case ObanChore.Params.validate(casted_args, chore.fields) do
-      :ok ->
-        case Oban.insert(chore.module.new(casted_args)) do
-          {:ok, job} ->
-            if pubsub = ObanChore.pubsub_server() do
-              Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
-            end
+    if changeset.valid? do
+      casted_args = Ecto.Changeset.apply_changes(changeset)
 
-            {:noreply,
-             socket
-             |> put_flash(:info, "Successfully enqueued #{chore.name}")
-             |> assign(active_job_id: job.id, logs: [])}
+      case Oban.insert(chore.module.new(casted_args)) do
+        {:ok, job} ->
+          if pubsub = ObanChore.pubsub_server() do
+            Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
+          end
 
-          {:error, _reason} ->
-            {:noreply, put_flash(socket, :error, "Failed to enqueue #{chore.name}")}
-        end
+          {:noreply,
+           socket
+           |> put_flash(:info, "Successfully enqueued #{chore.name}")
+           |> assign(active_job_id: job.id, logs: [])}
 
-      {:error, errors} ->
-        {:noreply, assign(socket, errors: errors)}
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to enqueue #{chore.name}")}
+      end
+    else
+      {:noreply, assign(socket, form: to_form(Map.put(changeset, :action, :insert), as: :args))}
     end
   end
 
