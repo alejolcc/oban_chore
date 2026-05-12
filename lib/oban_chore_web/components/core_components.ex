@@ -7,17 +7,17 @@ defmodule ObanChoreWeb.CoreComponents do
   @doc """
   Renders an input with label and error messages.
   """
-  attr :id, :any, default: nil
-  attr :name, :any
-  attr :label, :string, default: nil
-  attr :value, :any
-  attr :type, :string, default: "text"
-  attr :field, Phoenix.HTML.FormField
-  attr :errors, :list, default: []
-  attr :default, :any, default: nil
-  attr :options, :list, default: []
-  attr :prompt, :string, default: nil
-  attr :rest, :global
+  attr(:id, :any, default: nil)
+  attr(:name, :any)
+  attr(:label, :string, default: nil)
+  attr(:value, :any)
+  attr(:type, :string, default: "text")
+  attr(:field, Phoenix.HTML.FormField)
+  attr(:errors, :list, default: [])
+  attr(:default, :any, default: nil)
+  attr(:options, :list, default: [])
+  attr(:prompt, :string, default: nil)
+  attr(:rest, :global)
 
   def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
     assigns
@@ -30,8 +30,8 @@ defmodule ObanChoreWeb.CoreComponents do
 
   def input(%{type: "checkbox"} = assigns) do
     ~H"""
-    <div phx-feedback-for={@name} style="margin-bottom: 1rem;">
-      <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: bold; cursor: pointer;">
+    <div phx-feedback-for={@name} class="mb-4">
+      <label class="flex items-center gap-2 font-semibold cursor-pointer text-sm text-gray-700">
         <input type="hidden" name={@name} value="false" />
         <input
           type="checkbox"
@@ -39,6 +39,7 @@ defmodule ObanChoreWeb.CoreComponents do
           name={@name}
           value="true"
           checked={@value}
+          class="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
           {@rest}
         />
         <%= @label %>
@@ -50,12 +51,12 @@ defmodule ObanChoreWeb.CoreComponents do
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div phx-feedback-for={@name} style="margin-bottom: 1rem;">
+    <div phx-feedback-for={@name} class="mb-4">
       <.label :if={@label} for={@id}><%= @label %></.label>
       <textarea
         id={@id}
         name={@name}
-        style="width: 100%; min-height: 100px; display: block;"
+        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm min-h-[100px]"
         {@rest}
       ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
       <.error_list errors={@errors} />
@@ -65,9 +66,14 @@ defmodule ObanChoreWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div phx-feedback-for={@name} style="margin-bottom: 1rem;">
+    <div phx-feedback-for={@name} class="mb-4">
       <.label :if={@label} for={@id}><%= @label %></.label>
-      <select id={@id} name={@name} style="width: 100%; display: block;" {@rest}>
+      <select
+        id={@id}
+        name={@name}
+        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"
+        {@rest}
+      >
         <option :if={@prompt} value=""><%= @prompt %></option>
         <%= Phoenix.HTML.Form.options_for_select(@options, @value) %>
       </select>
@@ -78,14 +84,14 @@ defmodule ObanChoreWeb.CoreComponents do
 
   def input(assigns) do
     ~H"""
-    <div phx-feedback-for={@name} style="margin-bottom: 1rem;">
+    <div phx-feedback-for={@name} class="mb-4">
       <.label :if={@label} for={@id}><%= @label %></.label>
       <input
         type={@type}
         name={@name}
         id={@id}
         value={@value}
-        style="width: 100%; display: block;"
+        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"
         {@rest}
       />
       <.error_list errors={@errors} />
@@ -93,12 +99,12 @@ defmodule ObanChoreWeb.CoreComponents do
     """
   end
 
-  attr :for, :string, default: nil
-  slot :inner_block, required: true
+  attr(:for, :string, default: nil)
+  slot(:inner_block, required: true)
 
   def label(assigns) do
     ~H"""
-    <label for={@for} style="display: block; font-weight: bold; margin-bottom: 0.2rem;">
+    <label for={@for} class="block text-sm font-semibold leading-6 text-gray-900 mb-1">
       <%= render_slot(@inner_block) %>
     </label>
     """
@@ -107,7 +113,12 @@ defmodule ObanChoreWeb.CoreComponents do
   defp error_list(assigns) do
     ~H"""
     <%= for msg <- @errors do %>
-      <span style="color: red; font-size: 0.8rem; display: block; margin-top: 0.2rem;"><%= msg %></span>
+      <p class="mt-2 text-sm text-red-600 flex gap-1 items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+        </svg>
+        <%= msg %>
+      </p>
     <% end %>
     """
   end
