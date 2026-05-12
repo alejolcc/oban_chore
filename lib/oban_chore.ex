@@ -15,4 +15,20 @@ defmodule ObanChore do
   def hello do
     :world
   end
+
+  @doc """
+  Logs a message to the ObanChore dashboard for the given job.
+  """
+  def log(%Oban.Job{id: job_id}, message) do
+    if pubsub = pubsub_server() do
+      Phoenix.PubSub.broadcast(pubsub, "oban_chore:logs:#{job_id}", {:oban_chore_log, job_id, message})
+    end
+
+    :ok
+  end
+
+  @doc false
+  def pubsub_server do
+    Application.get_env(:oban_chore, :pubsub_server)
+  end
 end

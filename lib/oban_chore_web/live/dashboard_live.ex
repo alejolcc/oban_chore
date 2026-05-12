@@ -36,6 +36,17 @@ defmodule ObanChoreWeb.DashboardLive do
             <% end %>
             <button type="submit" style="padding: 0.5rem 1rem; cursor: pointer;">Execute Chore</button>
           </.form>
+
+          <%= if @active_job_id do %>
+            <div style="margin-top: 2rem;">
+              <h3>Execution Logs</h3>
+              <div style="background: #1e1e1e; color: #d4d4d4; padding: 1rem; font-family: monospace; height: 200px; overflow-y: auto; border-radius: 4px;">
+                <%= for log <- Enum.reverse(@logs) do %>
+                  <div style="margin-bottom: 0.2rem;">> <%= log %></div>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
         <% else %>
           <p>Select a chore from the list to get started.</p>
         <% end %>
@@ -71,7 +82,9 @@ defmodule ObanChoreWeb.DashboardLive do
        chores: chores,
        selected_chore: nil,
        form: to_form(%{}),
-       errors: %{}
+       errors: %{},
+       logs: [],
+       active_job_id: nil
      )}
   end
 
@@ -90,7 +103,9 @@ defmodule ObanChoreWeb.DashboardLive do
      assign(socket,
        selected_chore: chore,
        form: to_form(defaults),
-       errors: %{}
+       errors: %{},
+       logs: [],
+       active_job_id: nil
      )}
   end
 
@@ -107,11 +122,15 @@ defmodule ObanChoreWeb.DashboardLive do
     case ObanChore.Params.validate(casted_args, chore.fields) do
       :ok ->
         case Oban.insert(chore.module.new(casted_args)) do
-          {:ok, _job} ->
+          {:ok, job} ->
+            if pubsub = ObanChore.pubsub_server() do
+              Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
+            end
+
             {:noreply,
              socket
              |> put_flash(:info, "Successfully enqueued #{chore.name}")
-             |> assign(selected_chore: nil, form: to_form(%{}))}
+             |> assign(active_job_id: job.id, logs: [])}
 
           {:error, _reason} ->
             {:noreply, put_flash(socket, :error, "Failed to enqueue #{chore.name}")}
@@ -119,6 +138,15 @@ defmodule ObanChoreWeb.DashboardLive do
 
       {:error, errors} ->
         {:noreply, assign(socket, errors: errors)}
+    end
+  end
+
+  @impl true
+  def handle_info({:oban_chore_log, job_id, message}, socket) do
+    if job_id == socket.assigns.active_job_id do
+      {:noreply, assign(socket, logs: [message | socket.assigns.logs])}
+    else
+      {:noreply, socket}
     end
   end
 end

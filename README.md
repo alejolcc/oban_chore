@@ -95,6 +95,35 @@ defmodule MyAppWeb.Router do
 end
 ```
 
+### 4. Configure PubSub (Optional but Recommended)
+
+To enable real-time logging from your workers, configure your PubSub server:
+
+```elixir
+# config/config.exs
+config :oban_chore, pubsub_server: MyApp.PubSub
+```
+
+### 5. Use Real-Time Logging
+
+Inside your worker's `perform/1` function, use `ObanChore.log/2` to stream updates:
+
+```elixir
+defmodule MyApp.Chores.UserBackfill do
+  use ObanChore.Worker, name: "User Backfill"
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{} = job) do
+    ObanChore.log(job, "Starting backfill...")
+    # ... logic ...
+    ObanChore.log(job, "Processed 50%...")
+    # ... logic ...
+    ObanChore.log(job, "Done!")
+    :ok
+  end
+end
+```
+
 ## ✨ Core Features
 
 * 🛠️ **Zero-Boilerplate Internal Tooling:** Stop building custom HTML forms and controllers for one-off admin tasks. Define your argument schema once in the backend, and let ObanChore generate the UI.
