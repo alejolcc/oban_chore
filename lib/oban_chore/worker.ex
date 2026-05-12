@@ -31,6 +31,7 @@ defmodule ObanChore.Worker do
       @doc false
       def __chore_info__ do
         %{
+          module: __MODULE__,
           name: unquote(chore_name) || inspect(__MODULE__),
           fields: unquote(chore_fields)
         }

@@ -41,6 +41,60 @@ end
 
 Support, QA, or Product Managers can now log into an admin dashboard, fill out a user-friendly form, and safely trigger the job—while Oban handles the reliable, asynchronous execution in the background.
 
+## 🚀 Getting Started
+
+### 1. Install Dependency
+
+Add `oban_chore` to your `mix.exs`:
+
+```elixir
+def deps do
+  [
+    {:oban_chore, "~> 0.1.0"}
+  ]
+end
+```
+
+### 2. Define a Chore
+
+Replace `use Oban.Worker` with `use ObanChore.Worker` and define your fields:
+
+```elixir
+defmodule MyApp.Chores.UserBackfill do
+  use ObanChore.Worker,
+    name: "User Data Backfill",
+    fields: [
+      user_id: [type: :integer, required: true],
+      reason: [type: :string, default: "Manual Update"]
+    ]
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: args}) do
+    # Your logic here
+    :ok
+  end
+end
+```
+
+### 3. Mount the Dashboard
+
+Add the dashboard to your Phoenix router:
+
+```elixir
+# lib/my_app_web/router.ex
+defmodule MyAppWeb.Router do
+  use MyAppWeb, :router
+  import ObanChore.Router
+
+  scope "/" do
+    pipe_through :browser
+    
+    # Mount the dashboard at any path
+    oban_chore_dashboard "/chores"
+  end
+end
+```
+
 ## ✨ Core Features
 
 * 🛠️ **Zero-Boilerplate Internal Tooling:** Stop building custom HTML forms and controllers for one-off admin tasks. Define your argument schema once in the backend, and let ObanChore generate the UI.
