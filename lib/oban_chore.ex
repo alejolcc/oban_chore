@@ -13,6 +13,6 @@ defmodule ObanChore do
 
   """
   def hello do
-    "it works"
+    :world
   end
 end

@@ -11,9 +11,9 @@ defmodule ObanChore.PluginTest do
   test "can be manually initialized with chores for testing" do
     chore_info = TestChore.__chore_info__()
     {:ok, pid} = ObanChore.Plugin.start_link(chores: [chore_info])
-    
+
     chores = ObanChore.Plugin.get_chores()
-    
+
     assert is_list(chores)
     assert Enum.any?(chores, fn c -> c.name == "Plugin Test Chore" end)
     assert Enum.any?(chores, fn c -> c.module == TestChore end)

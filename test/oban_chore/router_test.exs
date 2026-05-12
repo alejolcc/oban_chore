@@ -6,7 +6,7 @@ defmodule ObanChore.RouterTest do
     import ObanChore.Router
 
     scope "/" do
-      oban_chore_dashboard "/chores"
+      oban_chore_dashboard("/chores")
     end
   end
 

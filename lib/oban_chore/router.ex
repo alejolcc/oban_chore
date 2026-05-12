@@ -8,7 +8,7 @@ defmodule ObanChore.Router do
       scope unquote(path), alias: false, as: false do
         import Phoenix.LiveView.Router
 
-        live "/", ObanChoreWeb.DashboardLive, :index
+        live("/", ObanChoreWeb.DashboardLive, :index)
       end
     end
   end
