@@ -21,7 +21,11 @@ defmodule ObanChore do
   """
   def log(%Oban.Job{id: job_id}, message) do
     if pubsub = pubsub_server() do
-      Phoenix.PubSub.broadcast(pubsub, "oban_chore:logs:#{job_id}", {:oban_chore_log, job_id, message})
+      Phoenix.PubSub.broadcast(
+        pubsub,
+        "oban_chore:logs:#{job_id}",
+        {:oban_chore_log, job_id, message}
+      )
     end
 
     :ok

@@ -1,5 +1,6 @@
 defmodule ObanChoreWeb.DashboardLive do
   use Phoenix.LiveView
+  import ObanChoreWeb.CoreComponents
 
   @impl true
   def render(assigns) do
@@ -26,15 +27,14 @@ defmodule ObanChoreWeb.DashboardLive do
           <h2>Run: <%= @selected_chore.name %></h2>
           <.form for={@form} phx-change="validate" phx-submit="execute" style="max-width: 400px;">
             <%= for {field, opts} <- @selected_chore.fields do %>
-              <div style="margin-bottom: 1rem;">
-                <label style="display: block; font-weight: bold;"><%= Keyword.get(opts, :label, field) %></label>
-                <%= render_input(field, opts, @form) %>
-                <%= for error <- @form[field].errors do %>
-                  <span style="color: red; font-size: 0.8rem; display: block;"><%= format_error(error) %></span>
-                <% end %>
-              </div>
+              <.input
+                field={@form[field]}
+                label={Keyword.get(opts, :label, field)}
+                type={to_string(Keyword.get(opts, :type, "text"))}
+                default={Keyword.get(opts, :default)}
+              />
             <% end %>
-            <button type="submit" style="padding: 0.5rem 1rem; cursor: pointer;">Execute Chore</button>
+            <button type="submit" style="padding: 0.5rem 1rem; cursor: pointer; margin-top: 1rem;">Execute Chore</button>
           </.form>
 
           <%= if @active_job_id do %>
@@ -53,31 +53,6 @@ defmodule ObanChoreWeb.DashboardLive do
       </div>
     </div>
     """
-  end
-
-  defp render_input(field, opts, form) do
-    type = Keyword.get(opts, :type, :string)
-    field_data = form[field]
-    name = field_data.name
-    value = field_data.value
-    assigns = %{name: name, value: value}
-
-    case type do
-      :boolean ->
-        ~H|<input type="checkbox" name={@name} checked={@value} />|
-
-      :integer ->
-        ~H|<input type="number" name={@name} value={@value} style="width: 100%;" />|
-
-      _ ->
-        ~H|<input type="text" name={@name} value={@value} style="width: 100%;" />|
-    end
-  end
-
-  defp format_error({msg, opts}) do
-    Enum.reduce(opts, msg, fn {key, value}, acc ->
-      String.replace(acc, "%{#{key}}", to_string(value))
-    end)
   end
 
   @impl true

@@ -20,6 +20,58 @@ defmodule ObanChore.WorkerTest do
     def perform(%Oban.Job{}), do: :ok
   end
 
+  defmodule ComprehensiveWorker do
+    use ObanChore.Worker,
+      name: "All Types Chore",
+      fields: [
+        # Native types
+        my_string: [type: :string],
+        my_int: [type: :integer],
+        my_bool: [type: :boolean],
+        # Mapped types
+        my_text: [type: :textarea],
+        my_select: [type: :select],
+        my_email: [type: :email],
+        my_url: [type: :url],
+        my_pass: [type: :password],
+        my_search: [type: :search],
+        my_tel: [type: :tel]
+      ]
+
+    @impl Oban.Worker
+    def perform(_), do: :ok
+  end
+
+  test "correctly maps UI types to Ecto types and casts them" do
+    params = %{
+      "my_string" => "hello",
+      "my_int" => "42",
+      "my_bool" => "true",
+      "my_text" => "some long text",
+      "my_select" => "option1",
+      "my_email" => "test@example.com",
+      "my_url" => "https://example.com",
+      "my_pass" => "secret",
+      "my_search" => "query",
+      "my_tel" => "123456"
+    }
+
+    changeset = ComprehensiveWorker.changeset(params)
+    assert changeset.valid?
+
+    # Verify values and their types
+    assert changeset.changes.my_string == "hello"
+    assert changeset.changes.my_int == 42
+    assert changeset.changes.my_bool == true
+    assert changeset.changes.my_text == "some long text"
+    assert changeset.changes.my_select == "option1"
+    assert changeset.changes.my_email == "test@example.com"
+    assert changeset.changes.my_url == "https://example.com"
+    assert changeset.changes.my_pass == "secret"
+    assert changeset.changes.my_search == "query"
+    assert changeset.changes.my_tel == "123456"
+  end
+
   test "injects changeset/1 and custom_changeset/1" do
     # Valid data
     changeset = MyTestChore.changeset(%{"user_id" => "1", "age" => "25"})

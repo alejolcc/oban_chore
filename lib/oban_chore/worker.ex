@@ -46,7 +46,21 @@ defmodule ObanChore.Worker do
       """
       def changeset(params \\ %{}) do
         fields = unquote(chore_fields)
-        types = Enum.into(fields, %{}, fn {k, opts} -> {k, Keyword.get(opts, :type, :string)} end)
+
+        types =
+          Enum.into(fields, %{}, fn {k, opts} ->
+            type =
+              case Keyword.get(opts, :type, :string) do
+                t when t in [:textarea, :select, :email, :url, :password, :search, :tel] ->
+                  :string
+
+                other ->
+                  other
+              end
+
+            {k, type}
+          end)
+
         required = for {k, opts} <- fields, Keyword.get(opts, :required), do: k
 
         {%{}, types}
