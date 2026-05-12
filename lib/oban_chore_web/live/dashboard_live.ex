@@ -32,6 +32,8 @@ defmodule ObanChoreWeb.DashboardLive do
                 label={Keyword.get(opts, :label, field)}
                 type={to_string(Keyword.get(opts, :type, "text"))}
                 default={Keyword.get(opts, :default)}
+                options={Keyword.get(opts, :options, [])}
+                prompt={Keyword.get(opts, :prompt)}
               />
             <% end %>
             <button type="submit" style="padding: 0.5rem 1rem; cursor: pointer; margin-top: 1rem;">Execute Chore</button>

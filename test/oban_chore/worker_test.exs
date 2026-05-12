@@ -30,7 +30,7 @@ defmodule ObanChore.WorkerTest do
         my_bool: [type: :boolean],
         # Mapped types
         my_text: [type: :textarea],
-        my_select: [type: :select],
+        my_select: [type: :select, options: ["Option 1", "Option 2"]],
         my_email: [type: :email],
         my_url: [type: :url],
         my_pass: [type: :password],

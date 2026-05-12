@@ -7,15 +7,17 @@ defmodule ObanChoreWeb.CoreComponents do
   @doc """
   Renders an input with label and error messages.
   """
-  attr(:id, :any, default: nil)
-  attr(:name, :any)
-  attr(:label, :string, default: nil)
-  attr(:value, :any)
-  attr(:type, :string, default: "text")
-  attr(:field, Phoenix.HTML.FormField)
-  attr(:errors, :list, default: [])
-  attr(:default, :any, default: nil)
-  attr(:rest, :global)
+  attr :id, :any, default: nil
+  attr :name, :any
+  attr :label, :string, default: nil
+  attr :value, :any
+  attr :type, :string, default: "text"
+  attr :field, Phoenix.HTML.FormField
+  attr :errors, :list, default: []
+  attr :default, :any, default: nil
+  attr :options, :list, default: []
+  attr :prompt, :string, default: nil
+  attr :rest, :global
 
   def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
     assigns
@@ -61,6 +63,19 @@ defmodule ObanChoreWeb.CoreComponents do
     """
   end
 
+  def input(%{type: "select"} = assigns) do
+    ~H"""
+    <div phx-feedback-for={@name} style="margin-bottom: 1rem;">
+      <.label :if={@label} for={@id}><%= @label %></.label>
+      <select id={@id} name={@name} style="width: 100%; display: block;" {@rest}>
+        <option :if={@prompt} value=""><%= @prompt %></option>
+        <%= Phoenix.HTML.Form.options_for_select(@options, @value) %>
+      </select>
+      <.error_list errors={@errors} />
+    </div>
+    """
+  end
+
   def input(assigns) do
     ~H"""
     <div phx-feedback-for={@name} style="margin-bottom: 1rem;">
@@ -78,8 +93,8 @@ defmodule ObanChoreWeb.CoreComponents do
     """
   end
 
-  attr(:for, :string, default: nil)
-  slot(:inner_block, required: true)
+  attr :for, :string, default: nil
+  slot :inner_block, required: true
 
   def label(assigns) do
     ~H"""
