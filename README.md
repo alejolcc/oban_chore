@@ -55,7 +55,22 @@ def deps do
 end
 ```
 
-### 2. Define a Chore
+### 2. Configure Oban
+
+Add `ObanChore.Plugin` to your Oban configuration:
+
+```elixir
+# config/config.exs
+config :my_app, Oban,
+  repo: MyApp.Repo,
+  plugins: [
+    ObanChore.Plugin,
+    # ... other plugins
+  ],
+  queues: [default: 10]
+```
+
+### 3. Define a Chore
 
 Replace `use Oban.Worker` with `use ObanChore.Worker` and define your fields:
 
@@ -82,7 +97,7 @@ defmodule MyApp.Chores.UserBackfill do
 end
 ```
 
-### 3. Mount the Dashboard
+### 4. Mount the Dashboard
 
 Add the dashboard to your Phoenix router:
 
@@ -94,14 +109,13 @@ defmodule MyAppWeb.Router do
 
   scope "/" do
     pipe_through :browser
-    
+
     # Mount the dashboard at any path
     oban_chore_dashboard "/chores"
   end
-end
 ```
 
-### 4. Configure PubSub (Optional but Recommended)
+### 5. Configure PubSub (Optional but Recommended)
 
 To enable real-time logging from your workers, configure your PubSub server:
 
@@ -110,7 +124,7 @@ To enable real-time logging from your workers, configure your PubSub server:
 config :oban_chore, pubsub_server: MyApp.PubSub
 ```
 
-### 5. Use Real-Time Logging
+### 6. Use Real-Time Logging
 
 Inside your worker's `perform/1` function, use `ObanChore.log/2` to stream updates:
 
@@ -128,6 +142,7 @@ defmodule MyApp.Chores.UserBackfill do
     :ok
   end
 end
+```
 ```
 
 ## ✨ Core Features

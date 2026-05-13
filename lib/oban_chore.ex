@@ -1,6 +1,24 @@
 defmodule ObanChore do
   @moduledoc """
-  Documentation for `ObanChore`.
+  ObanChore transforms standard Oban workers into secure, UI-driven operational tools.
+
+  ## Configuration
+
+  To use ObanChore, you must add `ObanChore.Plugin` to your Oban configuration:
+
+      config :my_app, Oban,
+        repo: MyApp.Repo,
+        plugins: [
+          ObanChore.Plugin,
+          # ...
+        ],
+        queues: [default: 10]
+
+  ### Real-time Logging (Optional)
+
+  To enable real-time execution logs in the dashboard, configure your PubSub server:
+
+      config :oban_chore, pubsub_server: MyApp.PubSub
   """
 
   @doc """
