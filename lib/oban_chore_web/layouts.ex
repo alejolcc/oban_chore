@@ -28,8 +28,4 @@ defmodule ObanChoreWeb.Layouts do
     </div>
     """
   end
-
-  defp get_csrf_token do
-    Plug.CSRFProtection.get_csrf_token()
-  end
 end
