@@ -53,7 +53,7 @@ defmodule ObanChore.Worker do
           Enum.into(fields, %{}, fn {k, opts} ->
             type =
               case Keyword.get(opts, :type, :string) do
-                t when t in [:textarea, :select, :email, :url, :password, :search, :tel] ->
+                t when t in [:textarea, :select] ->
                   :string
 
                 other ->
