@@ -27,6 +27,14 @@ defmodule ObanChore.Worker do
     {chore_description, opts} = Keyword.pop(opts, :description)
     {chore_fields, opts} = Keyword.pop(opts, :fields, [])
 
+    # Default chore name to module name if not provided
+    name_ast =
+      if chore_name do
+        chore_name
+      else
+        quote do: inspect(__MODULE__)
+      end
+
     # Validate field types at compile time
     for {name, field_opts} <- chore_fields do
       type = Keyword.get(field_opts, :type)
@@ -54,7 +62,7 @@ defmodule ObanChore.Worker do
       def __chore_info__ do
         %{
           module: __MODULE__,
-          name: unquote(chore_name) || inspect(__MODULE__),
+          name: unquote(name_ast),
           description: unquote(chore_description),
           fields: unquote(chore_fields)
         }
