@@ -1,7 +1,7 @@
 defmodule ObanChore.MixProject do
   use Mix.Project
 
-  @version "0.1.0-beta.3"
+  @version "0.1.1-beta"
 
   def project do
     [
@@ -31,7 +31,7 @@ defmodule ObanChore.MixProject do
 
   defp package do
     [
-      maintainers: ["Alejo"],
+      maintainers: ["Alejo <alejo.lcc@gmail.com>"],
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/alejolcc/oban_chore"}
     ]

@@ -113,6 +113,7 @@ defmodule MyAppWeb.Router do
     # Mount the dashboard at any path
     oban_chore_dashboard "/chores"
   end
+end
 ```
 
 ### 5. Configure PubSub (Optional but Recommended)
@@ -142,7 +143,6 @@ defmodule MyApp.Chores.UserBackfill do
     :ok
   end
 end
-```
 ```
 
 ## ✨ Core Features
