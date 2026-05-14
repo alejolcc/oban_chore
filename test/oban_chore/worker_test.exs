@@ -97,6 +97,26 @@ defmodule ObanChore.WorkerTest do
     assert "must be greater than 18" in errors_on(changeset).age
   end
 
+  test "raises on missing field type" do
+    assert_raise ArgumentError, ~r/missing :type for field :bad_field/, fn ->
+      defmodule MissingTypeChore do
+        use ObanChore.Worker,
+          name: "Missing Type",
+          fields: [bad_field: []]
+      end
+    end
+  end
+
+  test "raises on invalid field type" do
+    assert_raise ArgumentError, ~r/invalid type :invalid_type/, fn ->
+      defmodule InvalidChore do
+        use ObanChore.Worker,
+          name: "Invalid",
+          fields: [bad_field: [type: :invalid_type]]
+      end
+    end
+  end
+
   defp errors_on(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
       Enum.reduce(opts, msg, fn {key, value}, acc ->

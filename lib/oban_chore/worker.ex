@@ -27,6 +27,23 @@ defmodule ObanChore.Worker do
     {chore_description, opts} = Keyword.pop(opts, :description)
     {chore_fields, opts} = Keyword.pop(opts, :fields, [])
 
+    # Validate field types at compile time
+    for {name, field_opts} <- chore_fields do
+      type = Keyword.get(field_opts, :type)
+
+      if is_nil(type) do
+        raise ArgumentError,
+              "missing :type for field #{inspect(name)}. " <>
+                "All fields must explicitly define a type (e.g., type: :string, type: :integer)."
+      end
+
+      unless type in [:textarea, :select, :checkbox] or Ecto.Type.base?(type) do
+        raise ArgumentError,
+              "invalid type #{inspect(type)} for field #{inspect(name)}. " <>
+                "Supported types are :textarea, :select, :checkbox or any Ecto base type."
+      end
+    end
+
     quote do
       @behaviour ObanChore.Worker
       use Oban.Worker, unquote(opts)
@@ -52,7 +69,7 @@ defmodule ObanChore.Worker do
         types =
           Enum.into(fields, %{}, fn {k, opts} ->
             type =
-              case Keyword.get(opts, :type, :string) do
+              case Keyword.get(opts, :type) do
                 t when t in [:textarea, :select] ->
                   :string
 
