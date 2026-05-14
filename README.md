@@ -64,7 +64,7 @@ Add `ObanChore.Plugin` to your Oban configuration:
 config :my_app, Oban,
   repo: MyApp.Repo,
   plugins: [
-    ObanChore.Plugin,
+    {ObanChore.Plugin, otp_app: :my_app},
     # ... other plugins
   ],
   queues: [default: 10]

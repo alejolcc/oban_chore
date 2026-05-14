@@ -9,7 +9,7 @@ defmodule ObanChore do
       config :my_app, Oban,
         repo: MyApp.Repo,
         plugins: [
-          ObanChore.Plugin,
+          {ObanChore.Plugin, otp_app: :my_app},
           # ...
         ],
         queues: [default: 10]
