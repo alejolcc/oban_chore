@@ -13,7 +13,8 @@ defmodule ObanChore.MixProject do
       package: package(),
       deps: deps(),
       name: "ObanChore",
-      source_url: "https://github.com/alejolcc/oban_chore"
+      source_url: "https://github.com/alejolcc/oban_chore",
+      aliases: aliases()
     ]
   end
 
@@ -46,5 +47,14 @@ defmodule ObanChore.MixProject do
       {:ecto, "~> 3.10"},
       {:ex_doc, "~> 0.31", runtime: false, only: :dev}
     ]
+  end
+
+  defp aliases do
+    [publish: ["hex.publish", &git_tag/1]]
+  end
+
+  defp git_tag(_args) do
+    System.cmd("git", ["tag", "v" <> Mix.Project.config()[:version]])
+    System.cmd("git", ["push", "--tags"])
   end
 end

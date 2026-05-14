@@ -150,7 +150,6 @@ end
 * 🛠️ **Zero-Boilerplate Internal Tooling:** Stop building custom HTML forms and controllers for one-off admin tasks. Define your argument schema once in the backend, and let ObanChore generate the UI.
 * 📡 **Live Execution Streaming:** Leveraging Phoenix PubSub, ObanChore streams logs and progress updates from the isolated background process directly back to the user's browser in real-time.
 * 🔐 **Operational Safety by Default:** Move away from direct database manipulation. Chores run within the strict, idempotent boundaries of your Oban workers. 
-* 📜 **Compliance & Auditability:** Every executed chore leaves a permanent trail. Know exactly *who* triggered a script, *when* it was run, and *what* parameters were used.
 * 🚦 **Concurrency Control:** Prevent race conditions by ensuring specific operational tasks cannot be triggered concurrently by multiple users.
 
 ## 🏗️ Architectural Philosophy
@@ -164,3 +163,9 @@ While Oban excels at automated, system-driven tasks (sending emails, processing 
 * **Engineering Teams:** Looking to reduce interruptions from operational requests and eliminate the need for production IEx access.
 * **Customer Support & Ops:** Needing safe, self-serve access to resolve customer issues without waiting on engineering.
 * **Technical Founders:** Wanting to implement enterprise-grade compliance, audit logging, and secure internal tooling from day one.
+
+## 🗺️ Roadmap
+
+- [ ] **Custom UI Components:** Support for more complex field types and custom LiveView components for argument input.
+- [ ] **Permission Management:** Integration with existing auth systems to restrict who can execute specific chores.
+- [ ] **Dry-Run Mode:** Ability to simulate chore execution before committing changes.
