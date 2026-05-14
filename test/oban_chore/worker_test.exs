@@ -30,7 +30,8 @@ defmodule ObanChore.WorkerTest do
         my_bool: [type: :boolean],
         # Mapped types
         my_text: [type: :textarea],
-        my_select: [type: :select, options: ["Option 1", "Option 2"]]
+        my_select: [type: :select, options: ["Option 1", "Option 2"]],
+        my_checkbox: [type: :checkbox]
       ]
 
     @impl Oban.Worker
@@ -62,7 +63,8 @@ defmodule ObanChore.WorkerTest do
       "my_int" => "42",
       "my_bool" => "true",
       "my_text" => "some long text",
-      "my_select" => "option1"
+      "my_select" => "option1",
+      "my_checkbox" => "true"
     }
 
     changeset = ComprehensiveWorker.changeset(params)
@@ -74,6 +76,7 @@ defmodule ObanChore.WorkerTest do
     assert changeset.changes.my_bool == true
     assert changeset.changes.my_text == "some long text"
     assert changeset.changes.my_select == "option1"
+    assert changeset.changes.my_checkbox == true
   end
 
   test "injects changeset/1 and custom_changeset/1" do

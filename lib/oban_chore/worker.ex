@@ -56,6 +56,9 @@ defmodule ObanChore.Worker do
                 t when t in [:textarea, :select] ->
                   :string
 
+                :checkbox ->
+                  :boolean
+
                 other ->
                   other
               end

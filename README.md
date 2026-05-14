@@ -185,9 +185,3 @@ While Oban excels at automated, system-driven tasks (sending emails, processing 
 * **Engineering Teams:** Looking to reduce interruptions from operational requests and eliminate the need for production IEx access.
 * **Customer Support & Ops:** Needing safe, self-serve access to resolve customer issues without waiting on engineering.
 * **Technical Founders:** Wanting to implement enterprise-grade compliance, audit logging, and secure internal tooling from day one.
-
-## 🗺️ Roadmap
-
-- [ ] **Custom UI Components:** Support for more complex field types and custom LiveView components for argument input.
-- [ ] **Permission Management:** Integration with existing auth systems to restrict who can execute specific chores.
-- [ ] **Dry-Run Mode:** Ability to simulate chore execution before committing changes.
