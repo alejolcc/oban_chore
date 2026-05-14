@@ -97,7 +97,29 @@ defmodule MyApp.Chores.UserBackfill do
 end
 ```
 
-### 4. Mount the Dashboard
+### 4. Advanced Configuration
+
+Since `ObanChore.Worker` is a wrapper around `Oban.Worker`, you can use all standard Oban options like `queue`, `max_attempts`, and `priority`:
+
+```elixir
+defmodule MyApp.Chores.CriticalBackfill do
+  use ObanChore.Worker,
+    name: "Critical Data Backfill",
+    queue: :operational,        # Run in a specific queue
+    max_attempts: 5,            # Set custom retry limit
+    priority: 1,                # Set job priority
+    fields: [
+      user_id: [type: :integer, required: true]
+    ]
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: args}) do
+    # ...
+  end
+end
+```
+
+### 5. Mount the Dashboard
 
 Add the dashboard to your Phoenix router:
 
