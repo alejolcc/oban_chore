@@ -42,6 +42,25 @@ defmodule ObanChore.WorkerTest do
     def perform(_), do: :ok
   end
 
+  defmodule DescriptiveWorker do
+    use ObanChore.Worker,
+      name: "Descriptive Chore",
+      description: "This chore has a helpful description.",
+      fields: []
+
+    @impl Oban.Worker
+    def perform(_), do: :ok
+  end
+
+  test "captures description in __chore_info__" do
+    info = DescriptiveWorker.__chore_info__()
+    assert info.description == "This chore has a helpful description."
+
+    # Verify fallback for workers without description
+    info = MyTestChore.__chore_info__()
+    assert info.description == nil
+  end
+
   test "correctly maps UI types to Ecto types and casts them" do
     params = %{
       "my_string" => "hello",

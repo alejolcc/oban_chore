@@ -46,7 +46,7 @@ defmodule ObanChoreWeb.DashboardLive do
                 <%= @selected_chore.name %>
               </h2>
               <p class="mt-2 text-sm text-gray-500">
-                Configure and execute this chore.
+                <%= @selected_chore.description || "Configure and execute this chore." %>
               </p>
             </div>
 
@@ -137,7 +137,6 @@ defmodule ObanChoreWeb.DashboardLive do
 
   @impl true
   def handle_event("select_chore", %{"module" => module_str}, socket) do
-    IO.inspect(module_str, label: "Selected chore module")
     module = String.to_existing_atom(module_str)
     chore = Enum.find(socket.assigns.chores, fn c -> c.module == module end)
 

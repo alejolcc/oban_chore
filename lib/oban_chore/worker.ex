@@ -24,6 +24,7 @@ defmodule ObanChore.Worker do
   defmacro __using__(opts) do
     # Extract ObanChore specific options
     {chore_name, opts} = Keyword.pop(opts, :name)
+    {chore_description, opts} = Keyword.pop(opts, :description)
     {chore_fields, opts} = Keyword.pop(opts, :fields, [])
 
     quote do
@@ -37,6 +38,7 @@ defmodule ObanChore.Worker do
         %{
           module: __MODULE__,
           name: unquote(chore_name) || inspect(__MODULE__),
+          description: unquote(chore_description),
           fields: unquote(chore_fields)
         }
       end
