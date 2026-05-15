@@ -21,6 +21,21 @@ defmodule ObanChore.Worker do
 
   @callback custom_changeset(Ecto.Changeset.t()) :: Ecto.Changeset.t()
 
+  defp accepted_types do
+    [
+      :integer,
+      :float,
+      :boolean,
+      :string,
+      :date,
+      :time,
+      :utc_datetime,
+      :textarea,
+      :select,
+      :checkbox
+    ]
+  end
+
   defmacro __using__(opts) do
     # Extract ObanChore specific options
     {chore_name, opts} = Keyword.pop(opts, :name)
@@ -35,7 +50,6 @@ defmodule ObanChore.Worker do
         quote do: inspect(__MODULE__)
       end
 
-    # Validate field types at compile time
     for {name, field_opts} <- chore_fields do
       type = Keyword.get(field_opts, :type)
 
@@ -45,7 +59,7 @@ defmodule ObanChore.Worker do
                 "All fields must explicitly define a type (e.g., type: :string, type: :integer)."
       end
 
-      unless type in [:textarea, :select, :checkbox] or Ecto.Type.base?(type) do
+      unless type in accepted_types() do
         raise ArgumentError,
               "invalid type #{inspect(type)} for field #{inspect(name)}. " <>
                 "Supported types are :textarea, :select, :checkbox or any Ecto base type."

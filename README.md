@@ -97,7 +97,67 @@ defmodule MyApp.Chores.UserBackfill do
 end
 ```
 
-### 4. Advanced Configuration
+### 4. Mount the Dashboard
+
+Add the dashboard to your Phoenix router:
+
+```elixir
+# lib/my_app_web/router.ex
+defmodule MyAppWeb.Router do
+  use MyAppWeb, :router
+  import ObanChore.Router
+
+  scope "/" do
+    pipe_through :browser
+
+    # Mount the dashboard at any path
+    oban_chore_dashboard "/chores"
+  end
+end
+```
+
+### 5. Supported Field Types
+
+ObanChore supports several field types that automatically map to both Ecto types for validation and HTML input types for the dashboard:
+
+| Type | Ecto Type | HTML Input |
+| :--- | :--- | :--- |
+| `:string` | `:string` | `text` |
+| `:integer` | `:integer` | `number` |
+| `:float` | `:float` | `number` |
+| `:boolean` | `:boolean` | `checkbox` |
+| `:date` | `:date` | `date` |
+| `:time` | `:time` | `time` |
+| `:utc_datetime` | `:utc_datetime` | `datetime-local` |
+| `:textarea` | `:string` | `textarea` |
+| `:select` | `:string` | `select` |
+| `:checkbox` | `:boolean` | `checkbox` |
+
+### ⚠️ A Note on Dates and Times
+
+ObanChore fully supports `:date`, `:time`, and `:utc_datetime` fields. Using these types provides a great UI experience, rendering native HTML5 date/time pickers in the dashboard and utilizing Ecto to validate the input.
+
+**However, be aware of Oban's JSON serialization.** Because Oban stores all job arguments in a PostgreSQL `jsonb` column, your worker's `perform/1` function will receive these values as **ISO8601 Strings**, not native Elixir structs. 
+
+If you need to manipulate the date inside your worker, you must parse the string first:
+
+```elixir
+defmodule MyApp.Chores.ScheduleReport do
+  use ObanChore.Worker, fields: [run_date: [type: :date]]
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{"run_date" => date_string}}) do
+    # date_string will be "2026-05-15"
+    parsed_date = Date.from_iso8601!(date_string)
+
+    # ... your business logic ...
+    :ok
+  end
+end
+```
+
+### 6. Advanced Configuration
+
 
 Since `ObanChore.Worker` is a wrapper around `Oban.Worker`, you can use all standard Oban options like `queue`, `max_attempts`, and `priority`:
 
@@ -119,37 +179,16 @@ defmodule MyApp.Chores.CriticalBackfill do
 end
 ```
 
-### 5. Mount the Dashboard
+### 7. Real-Time Logging (Optional)
 
-Add the dashboard to your Phoenix router:
-
-```elixir
-# lib/my_app_web/router.ex
-defmodule MyAppWeb.Router do
-  use MyAppWeb, :router
-  import ObanChore.Router
-
-  scope "/" do
-    pipe_through :browser
-
-    # Mount the dashboard at any path
-    oban_chore_dashboard "/chores"
-  end
-end
-```
-
-### 5. Configure PubSub (Optional but Recommended)
-
-To enable real-time logging from your workers, configure your PubSub server:
+To enable real-time updates from your workers, first configure your PubSub server:
 
 ```elixir
 # config/config.exs
 config :oban_chore, pubsub_server: MyApp.PubSub
 ```
 
-### 6. Use Real-Time Logging
-
-Inside your worker's `perform/1` function, use `ObanChore.log/2` to stream updates:
+Then, use `ObanChore.log/2` inside your worker's `perform/1` function to stream updates:
 
 ```elixir
 defmodule MyApp.Chores.UserBackfill do
