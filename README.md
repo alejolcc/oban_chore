@@ -4,6 +4,8 @@
 
 ObanChore is an Elixir library that transforms your standard Oban workers into secure, UI-driven operational tools. It automatically generates a Phoenix LiveView dashboard allowing your team to trigger, monitor, and audit ad-hoc scripts and backfills without touching a production console.
 
+![ObanChore Dashboard Preview](assets/dashboard_preview.png)
+
 ---
 
 ## 🛑 The Problem: The "IEx Bottleneck"
@@ -28,9 +30,12 @@ defmodule MyApp.Chores.UserBackfill do
   use ObanChore.Worker,
     name: "User Data Backfill",
     fields: [
-      user_id: [type: :integer, required: true],
-      reason: [type: :string, default: "Manual Update"]
-    ]
+      user_id: [type: :integer, required: true, label: "User ID"],
+      role: [ type: :select, options: [Admin: 2, Editor: "editor", Viewer: "viewer"], prompt: "Choose a role..." ],
+      reason: [type: :textarea, required: true, label: "Reason"],
+      notify_user: [type: :boolean, label: "Notify User?"]
+    ],
+    description: "Backfill user data with new fields and values."
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
@@ -43,7 +48,11 @@ Support, QA, or Product Managers can now log into an admin dashboard, fill out a
 
 ## 🚀 Getting Started
 
-### 1. Install Dependency
+### 1. Prerequisites
+
+ObanChore requires a working Phoenix application with **LiveView 1.0+** and **Oban 2.18+** installed and configured.
+
+### 2. Install Dependency
 
 Add `oban_chore` to your `mix.exs`:
 
@@ -55,7 +64,7 @@ def deps do
 end
 ```
 
-### 2. Configure Oban
+### 3. Configure Oban
 
 Add `ObanChore.Plugin` to your Oban configuration:
 
@@ -70,7 +79,7 @@ config :my_app, Oban,
   queues: [default: 10]
 ```
 
-### 3. Define a Chore
+### 4. Define a Chore
 
 Replace `use Oban.Worker` with `use ObanChore.Worker` and define your fields:
 
@@ -92,12 +101,14 @@ defmodule MyApp.Chores.UserBackfill do
   # Optional: Add custom validations using Ecto.Changeset
   @impl ObanChore.Worker
   def custom_changeset(changeset) do
-    Ecto.Changeset.validate_number(changeset, :user_id, greater_than: 0)
+    changeset
+    |> Ecto.Changeset.validate_number(:user_id, greater_than: 0)
+    |> Ecto.Changeset.validate_length(:reason, min: 5)
   end
 end
 ```
 
-### 4. Mount the Dashboard
+### 5. Mount the Dashboard
 
 Add the dashboard to your Phoenix router:
 
@@ -116,7 +127,11 @@ defmodule MyAppWeb.Router do
 end
 ```
 
-### 5. Supported Field Types
+---
+
+## 🛠️ Field Configuration
+
+### Supported Types
 
 ObanChore supports several field types that automatically map to both Ecto types for validation and HTML input types for the dashboard:
 
@@ -132,6 +147,19 @@ ObanChore supports several field types that automatically map to both Ecto types
 | `:textarea` | `:string` | `textarea` |
 | `:select` | `:string` | `select` |
 | `:checkbox` | `:boolean` | `checkbox` |
+
+### Field Options
+
+Each field can be customized with the following options:
+
+| Option | Description |
+| :--- | :--- |
+| `:type` | **(Required)** The field type from the table above. |
+| `:label` | The display name for the field in the UI. Defaults to the key name. |
+| `:required` | Whether the field must be present. Adds validation to the form. |
+| `:default` | The initial value for the field in the form. |
+| `:options` | Required for `:select`. A list of strings or `{"Label", "Value"}` tuples. |
+| `:prompt` | Optional for `:select`. The placeholder text for the dropdown. |
 
 ### ⚠️ A Note on Dates and Times
 
@@ -156,10 +184,11 @@ defmodule MyApp.Chores.ScheduleReport do
 end
 ```
 
-### 6. Advanced Configuration
+---
 
+## ⚙️ Advanced Configuration
 
-Since `ObanChore.Worker` is a wrapper around `Oban.Worker`, you can use all standard Oban options like `queue`, `max_attempts`, and `priority`:
+Since `ObanChore.Worker` is a wrapper around `Oban.Worker`, you can use all standard Oban options:
 
 ```elixir
 defmodule MyApp.Chores.CriticalBackfill do
@@ -179,7 +208,7 @@ defmodule MyApp.Chores.CriticalBackfill do
 end
 ```
 
-### 7. Real-Time Logging (Optional)
+### Real-Time Logging (Optional)
 
 To enable real-time updates from your workers, first configure your PubSub server:
 

@@ -147,5 +147,4 @@ defmodule ObanChoreWeb.CoreComponents do
   end
 
   defp normalize_value(assigns), do: assigns
-
 end
