@@ -40,7 +40,7 @@ defmodule MyApp.Chores.UserBackfill do
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"user_id" => user_id, "reason" => reason} = args}) do
     notify_user? = Map.get(args, “notify_user”)
-    role = Map.get(args, “notify_user”)
+    role = Map.get(args, role)
     # Use user_id and reason here
   end
 end
