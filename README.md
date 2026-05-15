@@ -38,8 +38,10 @@ defmodule MyApp.Chores.UserBackfill do
     description: "Backfill user data with new fields and values."
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: args}) do
-    # Logic here
+  def perform(%Oban.Job{args: %{"user_id" => user_id, "reason" => reason} = args}) do
+    notify_user? = Map.get(args, “notify_user”)
+    role = Map.get(args, “notify_user”)
+    # Use user_id and reason here
   end
 end
 ```
@@ -93,7 +95,7 @@ defmodule MyApp.Chores.UserBackfill do
     ]
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: args}) do
+  def perform(%Oban.Job{args: %{"user_id" => user_id, "reason" => reason} = args}) do
     # Your logic here
     :ok
   end
