@@ -31,7 +31,7 @@ defmodule MyApp.Chores.UserBackfill do
     name: "User Data Backfill",
     fields: [
       user_id: [type: :integer, required: true, label: "User ID"],
-      role: [ type: :select, options: [Admin: 2, Editor: "editor", Viewer: "viewer"], prompt: "Choose a role..." ],
+      role: [ type: :select, options: [Admin: 2, Editor: 1, Viewer: 3], prompt: "Choose a role..." ],
       reason: [type: :textarea, required: true, label: "Reason"],
       notify_user: [type: :boolean, label: "Notify User?"]
     ],
@@ -59,7 +59,7 @@ Add `oban_chore` to your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:oban_chore, "~> 0.1.0"}
+    {:oban_chore, "~> 0.2.0"}
   ]
 end
 ```
