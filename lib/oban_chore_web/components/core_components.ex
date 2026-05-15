@@ -25,6 +25,7 @@ defmodule ObanChoreWeb.CoreComponents do
     |> assign(:errors, Enum.map(field.errors, &format_error/1))
     |> assign_new(:name, fn -> field.name end)
     |> assign_new(:value, fn -> field.value || assigns.default end)
+    |> normalize_value()
     |> input()
   end
 
@@ -128,4 +129,23 @@ defmodule ObanChoreWeb.CoreComponents do
       String.replace(acc, "%{#{key}}", to_string(value))
     end)
   end
+
+  defp normalize_value(%{type: "datetime-local", value: %DateTime{} = dt} = assigns) do
+    # Format: YYYY-MM-DDTHH:MM
+    formatted = dt |> DateTime.to_naive() |> NaiveDateTime.to_iso8601() |> String.slice(0..15)
+    assign(assigns, value: formatted)
+  end
+
+  defp normalize_value(%{type: "date", value: %Date{} = d} = assigns) do
+    assign(assigns, value: Date.to_iso8601(d))
+  end
+
+  defp normalize_value(%{type: "time", value: %Time{} = t} = assigns) do
+    # Format: HH:MM
+    formatted = t |> Time.to_iso8601() |> String.slice(0..4)
+    assign(assigns, value: formatted)
+  end
+
+  defp normalize_value(assigns), do: assigns
+
 end

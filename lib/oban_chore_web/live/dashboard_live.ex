@@ -59,7 +59,7 @@ defmodule ObanChoreWeb.DashboardLive do
                       <.input
                         field={@form[field]}
                         label={Keyword.get(opts, :label, field)}
-                        type={to_string(Keyword.get(opts, :type, "text"))}
+                        type={type_to_input_type(Keyword.get(opts, :type))}
                         default={Keyword.get(opts, :default)}
                         options={Keyword.get(opts, :options, [])}
                         prompt={Keyword.get(opts, :prompt)}
@@ -197,6 +197,16 @@ defmodule ObanChoreWeb.DashboardLive do
       {:noreply, assign(socket, logs: [message | socket.assigns.logs])}
     else
       {:noreply, socket}
+    end
+  end
+
+  defp type_to_input_type(type) do
+    case type do
+      :utc_datetime -> "datetime-local"
+      :date -> "date"
+      :time -> "time"
+      :boolean -> "checkbox"
+      other -> to_string(other)
     end
   end
 end
