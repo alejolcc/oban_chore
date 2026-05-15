@@ -7,7 +7,7 @@ defmodule ObanChore.MixProject do
     [
       app: :oban_chore,
       version: @version,
-      elixir: "~> 1.19",
+      elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       description: description(),
       package: package(),
@@ -41,10 +41,10 @@ defmodule ObanChore.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:oban, "~> 2.18"},
-      {:phoenix_live_view, "~> 1.0"},
-      {:phoenix_html, "~> 4.3"},
-      {:ecto, "~> 3.10"},
+      {:oban, "~> 2.15"},
+      {:phoenix_live_view, "~> 0.20 or ~> 1.0"},
+      {:phoenix_html, "~> 3.3 or ~> 4.0"},
+      {:ecto, "~> 3.0"},
       {:ex_doc, "~> 0.31", runtime: false, only: :dev}
     ]
   end
