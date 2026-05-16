@@ -22,19 +22,6 @@ defmodule ObanChore do
   """
 
   @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> ObanChore.hello()
-      :world
-
-  """
-  def hello do
-    :world
-  end
-
-  @doc """
   Logs a message to the ObanChore dashboard for the given job.
   """
   def log(%Oban.Job{id: job_id}, message) do
