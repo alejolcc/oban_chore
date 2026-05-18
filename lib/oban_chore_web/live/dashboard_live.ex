@@ -24,14 +24,15 @@ defmodule ObanChoreWeb.DashboardLive do
               phx-click="select_chore"
               phx-value-module={to_string(chore.module)}
               class={[
-                "w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                "w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-between",
                 if(@selected_chore && @selected_chore.module == chore.module,
                   do: "bg-brand/10 text-brand",
                   else: "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                 )
               ]}
             >
-              <%= chore.name %>
+              <span><%= chore.name %></span>
+              <.badge count={@counts[chore.module] || 0} />
             </button>
           <% end %>
         </nav>
@@ -125,9 +126,14 @@ defmodule ObanChoreWeb.DashboardLive do
   def mount(_params, _session, socket) do
     chores = ObanChore.Plugin.get_chores()
 
+    if connected?(socket) do
+      :timer.send_interval(5000, self(), :refresh_counts)
+    end
+
     {:ok,
      assign(socket,
        chores: chores,
+       counts: fetch_counts(chores),
        selected_chore: nil,
        form: to_form(%{}, as: :args),
        logs: [],
@@ -178,10 +184,12 @@ defmodule ObanChoreWeb.DashboardLive do
             Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
           end
 
+          new_counts = Map.update(socket.assigns.counts, chore.module, 1, &(&1 + 1))
+
           {:noreply,
            socket
            |> put_flash(:info, "Successfully enqueued #{chore.name}")
-           |> assign(active_job_id: job.id, logs: [])}
+           |> assign(active_job_id: job.id, logs: [], counts: new_counts)}
 
         {:error, _reason} ->
           {:noreply, put_flash(socket, :error, "Failed to enqueue #{chore.name}")}
@@ -189,6 +197,11 @@ defmodule ObanChoreWeb.DashboardLive do
     else
       {:noreply, assign(socket, form: to_form(Map.put(changeset, :action, :insert), as: :args))}
     end
+  end
+
+  @impl true
+  def handle_info(:refresh_counts, socket) do
+    {:noreply, assign(socket, counts: fetch_counts(socket.assigns.chores))}
   end
 
   @impl true
@@ -208,5 +221,9 @@ defmodule ObanChoreWeb.DashboardLive do
       :boolean -> "checkbox"
       other -> to_string(other)
     end
+  end
+
+  defp fetch_counts(chores) do
+    Map.new(chores, fn chore -> {chore.module, ObanChore.count_running(chore.module)} end)
   end
 end
