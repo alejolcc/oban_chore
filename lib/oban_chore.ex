@@ -48,6 +48,18 @@ defmodule ObanChore do
     |> repo.aggregate(:count, :id)
   end
 
+  @doc """
+  Checks if a job for the given worker and arguments is already running (available, scheduled, executing).
+  """
+  def running_with_args?(worker_module, args, oban_name \\ Oban) do
+    config = Oban.config(oban_name)
+    repo = config.repo
+
+    [state: ~w(available scheduled executing), worker: worker_module, args: args]
+    |> Oban.Job.query()
+    |> repo.exists?()
+  end
+
   @doc false
   def pubsub_server do
     Application.get_env(:oban_chore, :pubsub_server)

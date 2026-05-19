@@ -57,9 +57,14 @@ defmodule ObanChoreWeb.DashboardLive do
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <!-- Form Section -->
-              <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl md:col-span-1">
-                <div class="px-4 py-6 sm:p-8">
-                  <.form for={@form} phx-change="validate" phx-submit="execute" class="space-y-6">
+              <div class="space-y-6">
+                <%= if @duplicate_warning do %>
+                  <.duplicate_warning_banner on_confirm="confirm_execute" on_cancel="cancel_execute" />
+                <% end %>
+
+                <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+                  <div class="px-4 py-6 sm:p-8">
+                    <.form for={@form} phx-change="validate" phx-submit="execute" class="space-y-6">
                     <%= for {field, opts} <- @selected_chore.fields do %>
                       <.input
                         field={@form[field]}
@@ -82,9 +87,10 @@ defmodule ObanChoreWeb.DashboardLive do
                   </.form>
                 </div>
               </div>
+            </div>
 
-              <!-- Logs Section -->
-              <div class="space-y-4">
+            <!-- Logs Section -->
+            <div class="space-y-4">
                 <h3 class="text-sm font-semibold text-gray-900">Execution Logs</h3>
                 <div class={[
                   "bg-slate-900 rounded-lg p-4 font-mono text-xs overflow-y-auto h-[400px] border border-slate-800 shadow-inner",
@@ -146,7 +152,8 @@ defmodule ObanChoreWeb.DashboardLive do
        selected_chore: nil,
        form: to_form(%{}, as: :args),
        logs: [],
-       active_job_id: nil
+       active_job_id: nil,
+       duplicate_warning: nil
      )}
   end
 
@@ -166,7 +173,8 @@ defmodule ObanChoreWeb.DashboardLive do
        selected_chore: chore,
        form: to_form(chore.module.changeset(defaults), as: :args),
        logs: [],
-       active_job_id: nil
+       active_job_id: nil,
+       duplicate_warning: nil
      )}
   end
 
@@ -176,7 +184,7 @@ defmodule ObanChoreWeb.DashboardLive do
       socket.assigns.selected_chore.module.changeset(params)
       |> Map.put(:action, :validate)
 
-    {:noreply, assign(socket, form: to_form(changeset, as: :args))}
+    {:noreply, assign(socket, form: to_form(changeset, as: :args), duplicate_warning: nil)}
   end
 
   @impl true
@@ -187,22 +195,48 @@ defmodule ObanChoreWeb.DashboardLive do
     if changeset.valid? do
       casted_args = Ecto.Changeset.apply_changes(changeset)
 
-      case Oban.insert(chore.module.new(casted_args)) do
-        {:ok, job} ->
-          if pubsub = ObanChore.pubsub_server() do
-            Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
-          end
-
-          {:noreply,
-           socket
-           |> put_flash(:info, "Successfully enqueued #{chore.name}")
-           |> assign(active_job_id: job.id, logs: [])}
-
-        {:error, _reason} ->
-          {:noreply, put_flash(socket, :error, "Failed to enqueue #{chore.name}")}
+      if ObanChore.running_with_args?(chore.module, casted_args) do
+        {:noreply, assign(socket, duplicate_warning: params)}
+      else
+        perform_execute(socket, chore, casted_args)
       end
     else
       {:noreply, assign(socket, form: to_form(Map.put(changeset, :action, :insert), as: :args))}
+    end
+  end
+
+  @impl true
+  def handle_event("confirm_execute", _params, socket) do
+    chore = socket.assigns.selected_chore
+    params = socket.assigns.duplicate_warning
+    changeset = chore.module.changeset(params)
+    casted_args = Ecto.Changeset.apply_changes(changeset)
+
+    socket
+    |> assign(duplicate_warning: nil)
+    |> perform_execute(chore, casted_args)
+  end
+
+  @impl true
+  def handle_event("cancel_execute", _params, socket) do
+    {:noreply, assign(socket, duplicate_warning: nil)}
+  end
+
+  defp perform_execute(socket, chore, casted_args) do
+    case Oban.insert(chore.module.new(casted_args)) do
+      {:ok, job} ->
+        if pubsub = ObanChore.pubsub_server() do
+          Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
+        end
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Successfully enqueued #{chore.name}")
+         |> assign(active_job_id: job.id, logs: [])}
+
+      {:error, _reason} ->
+        Logger.error("Failed to enqueue #{chore.name} with args #{inspect(casted_args)}")
+        {:noreply, put_flash(socket, :error, "Failed to enqueue #{chore.name}")}
     end
   end
 

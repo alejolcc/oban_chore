@@ -131,6 +131,54 @@ defmodule ObanChoreWeb.CoreComponents do
     """
   end
 
+  @doc """
+  Renders a warning banner for duplicate chore execution.
+  """
+  attr(:on_confirm, :string, required: true)
+  attr(:on_cancel, :string, required: true)
+
+  def duplicate_warning_banner(assigns) do
+    ~H"""
+    <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-md shadow-sm">
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path
+              fill-rule="evenodd"
+              d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+              clip-rule="evenodd"
+            />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <h3 class="text-sm font-bold text-amber-800">Duplicate Execution Warning</h3>
+          <div class="mt-2 text-sm text-amber-700">
+            <p>
+              A job with these exact arguments is already running or scheduled. Are you sure you want to trigger it again?
+            </p>
+          </div>
+          <div class="mt-4 flex gap-3">
+            <button
+              type="button"
+              phx-click={@on_confirm}
+              class="rounded-md bg-amber-100 px-2.5 py-1.5 text-sm font-semibold text-amber-900 shadow-sm hover:bg-amber-200"
+            >
+              Confirm anyway
+            </button>
+            <button
+              type="button"
+              phx-click={@on_cancel}
+              class="text-sm font-semibold text-amber-900 hover:text-amber-800"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
   defp error_list(assigns) do
     ~H"""
     <%= for msg <- @errors do %>
