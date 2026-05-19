@@ -77,6 +77,22 @@ defmodule ObanChoreWeb.DashboardLive do
                     <% end %>
 
                     <div class="flex items-center justify-end gap-x-6 border-t border-gray-900/10 pt-6">
+                      <div class="relative flex items-center gap-2 group">
+                        <input
+                          type="checkbox"
+                          id="unique_execution"
+                          phx-click="toggle_unique"
+                          checked={@unique_execution}
+                          class="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
+                        />
+                        <label for="unique_execution" class="text-sm font-medium text-gray-700 cursor-pointer select-none">
+                          Unique per args
+                        </label>
+                        <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-3 py-2 bg-gray-900 text-white text-[10px] leading-tight rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none w-48 text-center z-20">
+                          Uses Oban's uniqueness engine to ensure only one job with these exact arguments can run at a time.
+                          <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      </div>
                       <button
                         type="submit"
                         class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
@@ -153,8 +169,14 @@ defmodule ObanChoreWeb.DashboardLive do
        form: to_form(%{}, as: :args),
        logs: [],
        active_job_id: nil,
-       duplicate_warning: nil
+       duplicate_warning: nil,
+       unique_execution: true
      )}
+  end
+
+  @impl true
+  def handle_event("toggle_unique", _params, socket) do
+    {:noreply, assign(socket, unique_execution: not socket.assigns.unique_execution)}
   end
 
   @impl true
@@ -223,15 +245,25 @@ defmodule ObanChoreWeb.DashboardLive do
   end
 
   defp perform_execute(socket, chore, casted_args) do
-    case Oban.insert(chore.module.new(casted_args)) do
+    opts =
+      if socket.assigns.unique_execution,
+        do: [unique: [period: :infinity, states: [:available, :scheduled, :executing]]],
+        else: []
+
+    case Oban.insert(chore.module.new(casted_args, opts)) do
       {:ok, job} ->
         if pubsub = ObanChore.pubsub_server() do
           Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
         end
 
+        message =
+          if socket.assigns.unique_execution,
+            do: "Job processed (uniqueness enforced)",
+            else: "Successfully enqueued #{chore.name}"
+
         {:noreply,
          socket
-         |> put_flash(:info, "Successfully enqueued #{chore.name}")
+         |> put_flash(:info, message)
          |> assign(active_job_id: job.id, logs: [])}
 
       {:error, _reason} ->
