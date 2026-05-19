@@ -37,13 +37,13 @@ defmodule ObanChore do
   end
 
   @doc """
-  Counts the number of running (executing) jobs for a given worker module.
+  Counts the number of running (available, scheduled, executing) jobs for a given worker module.
   """
-  def count_running(worker_module) do
-    config = Oban.config()
+  def count_running(worker_module, oban_name \\ Oban) do
+    config = Oban.config(oban_name)
     repo = config.repo
 
-    [state: ~w(scheduled executing), worker: worker_module]
+    [state: ~w(available scheduled executing), worker: worker_module]
     |> Oban.Job.query()
     |> repo.aggregate(:count, :id)
   end

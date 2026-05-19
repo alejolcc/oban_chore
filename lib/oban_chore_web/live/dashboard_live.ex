@@ -2,6 +2,10 @@ defmodule ObanChoreWeb.DashboardLive do
   use Phoenix.LiveView
   import ObanChoreWeb.CoreComponents
 
+  require Logger
+
+  @refresh_interval 5000
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -125,9 +129,14 @@ defmodule ObanChoreWeb.DashboardLive do
   @impl true
   def mount(_params, _session, socket) do
     chores = ObanChore.Plugin.get_chores()
+    pubsub = ObanChore.pubsub_server()
 
     if connected?(socket) do
-      :timer.send_interval(5000, self(), :refresh_counts)
+      if pubsub do
+        Phoenix.PubSub.subscribe(pubsub, "oban_chore:counts")
+      else
+        :timer.send_interval(@refresh_interval, self(), :refresh_counts)
+      end
     end
 
     {:ok,
@@ -184,12 +193,10 @@ defmodule ObanChoreWeb.DashboardLive do
             Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
           end
 
-          new_counts = Map.update(socket.assigns.counts, chore.module, 1, &(&1 + 1))
-
           {:noreply,
            socket
            |> put_flash(:info, "Successfully enqueued #{chore.name}")
-           |> assign(active_job_id: job.id, logs: [], counts: new_counts)}
+           |> assign(active_job_id: job.id, logs: [])}
 
         {:error, _reason} ->
           {:noreply, put_flash(socket, :error, "Failed to enqueue #{chore.name}")}
@@ -202,6 +209,13 @@ defmodule ObanChoreWeb.DashboardLive do
   @impl true
   def handle_info(:refresh_counts, socket) do
     {:noreply, assign(socket, counts: fetch_counts(socket.assigns.chores))}
+  end
+
+  @impl true
+  def handle_info({:oban_chore_count, worker_module, count}, socket) do
+    Logger.debug("[ObanChore Dashboard] Received count update for #{worker_module}: #{count}")
+    new_counts = Map.put(socket.assigns.counts, worker_module, count)
+    {:noreply, assign(socket, counts: new_counts)}
   end
 
   @impl true
@@ -224,6 +238,8 @@ defmodule ObanChoreWeb.DashboardLive do
   end
 
   defp fetch_counts(chores) do
-    Map.new(chores, fn chore -> {chore.module, ObanChore.count_running(chore.module)} end)
+    # For now we use the default Oban name.
+    # In the future we can make this configurable via the dashboard mount options.
+    Map.new(chores, fn chore -> {chore.module, ObanChore.count_running(chore.module, Oban)} end)
   end
 end

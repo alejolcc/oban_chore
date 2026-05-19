@@ -114,8 +114,8 @@ defmodule ObanChoreWeb.CoreComponents do
   @doc """
   Renders a numeric badge.
   """
-  attr :count, :integer, required: true
-  attr :class, :string, default: nil
+  attr(:count, :integer, required: true)
+  attr(:class, :string, default: nil)
 
   def badge(assigns) do
     ~H"""
