@@ -221,6 +221,51 @@ defmodule ObanChoreWeb.CoreComponents do
     """
   end
 
+  @doc """
+  Renders flash notifications.
+  """
+  attr(:flash, :map, required: true)
+
+  def flash_group(assigns) do
+    ~H"""
+    <div class="absolute top-8 right-8 z-50 w-80 space-y-2">
+      <%= if flash = Phoenix.Flash.get(@flash, :info) do %>
+        <div
+          class="rounded-md bg-green-50 p-4 shadow-lg border border-green-100 flex items-start gap-3 cursor-pointer"
+          phx-click="lv:clear-flash"
+          phx-value-key="info"
+        >
+          <svg class="h-5 w-5 text-green-400 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+            <path
+              fill-rule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <p class="text-sm font-medium text-green-800"><%= flash %></p>
+        </div>
+      <% end %>
+
+      <%= if flash = Phoenix.Flash.get(@flash, :error) do %>
+        <div
+          class="rounded-md bg-red-50 p-4 shadow-lg border border-red-100 flex items-start gap-3 cursor-pointer"
+          phx-click="lv:clear-flash"
+          phx-value-key="error"
+        >
+          <svg class="h-5 w-5 text-red-400 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+            <path
+              fill-rule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <p class="text-sm font-medium text-red-800"><%= flash %></p>
+        </div>
+      <% end %>
+    </div>
+    """
+  end
+
   defp error_list(assigns) do
     ~H"""
     <%= for msg <- @errors do %>

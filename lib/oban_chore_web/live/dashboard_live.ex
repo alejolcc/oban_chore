@@ -43,7 +43,9 @@ defmodule ObanChoreWeb.DashboardLive do
       </div>
 
       <!-- Main Content -->
-      <main class="flex-1 overflow-y-auto p-8">
+      <main class="flex-1 overflow-y-auto p-8 relative">
+        <.flash_group flash={@flash} />
+
         <%= if @selected_chore do %>
           <div class="max-w-4xl mx-auto space-y-8">
             <div class="border-b border-gray-200 pb-5">
@@ -189,7 +191,6 @@ defmodule ObanChoreWeb.DashboardLive do
      )}
   end
 
-
   @impl true
   def handle_event("validate", %{"args" => params}, socket) do
     changeset =
@@ -244,14 +245,14 @@ defmodule ObanChoreWeb.DashboardLive do
         else: []
 
     case Oban.insert(chore.module.new(casted_args, opts)) do
-      {:ok, job} ->
+      {:ok, %{conflict?: conflict?} = job} ->
         if pubsub = ObanChore.pubsub_server() do
           Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
         end
 
         message =
-          if socket.assigns.unique_execution,
-            do: "Job processed (uniqueness enforced)",
+          if conflict?,
+            do: "Job already running with these arguments",
             else: "Successfully enqueued #{chore.name}"
 
         {:noreply,
