@@ -77,22 +77,10 @@ defmodule ObanChoreWeb.DashboardLive do
                     <% end %>
 
                     <div class="flex items-center justify-end gap-x-6 border-t border-gray-900/10 pt-6">
-                      <div class="relative flex items-center gap-2 group">
-                        <input
-                          type="checkbox"
-                          id="unique_execution"
-                          phx-click="toggle_unique"
-                          checked={@unique_execution}
-                          class="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
-                        />
-                        <label for="unique_execution" class="text-sm font-medium text-gray-700 cursor-pointer select-none">
-                          Unique per args
-                        </label>
-                        <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-3 py-2 bg-gray-900 text-white text-[10px] leading-tight rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none w-48 text-center z-20">
-                          Uses Oban's uniqueness engine to ensure only one job with these exact arguments can run at a time.
-                          <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                        </div>
-                      </div>
+                      <.unique_execution_toggle
+                        unique_execution={@unique_execution}
+                        worker_has_unique={@selected_chore.unique}
+                      />
                       <button
                         type="submit"
                         class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
@@ -196,9 +184,11 @@ defmodule ObanChoreWeb.DashboardLive do
        form: to_form(chore.module.changeset(defaults), as: :args),
        logs: [],
        active_job_id: nil,
-       duplicate_warning: nil
+       duplicate_warning: nil,
+       unique_execution: chore.unique || true
      )}
   end
+
 
   @impl true
   def handle_event("validate", %{"args" => params}, socket) do
@@ -245,8 +235,11 @@ defmodule ObanChoreWeb.DashboardLive do
   end
 
   defp perform_execute(socket, chore, casted_args) do
+    # Check if the worker already has unique options defined
+    has_worker_unique? = chore.unique
+
     opts =
-      if socket.assigns.unique_execution,
+      if socket.assigns.unique_execution and not has_worker_unique?,
         do: [unique: [period: :infinity, states: [:available, :scheduled, :executing]]],
         else: []
 

@@ -66,6 +66,9 @@ defmodule ObanChore.Worker do
       end
     end
 
+    # Determine if the worker has unique options
+    has_unique = Keyword.has_key?(opts, :unique)
+
     quote do
       @behaviour ObanChore.Worker
       use Oban.Worker, unquote(opts)
@@ -78,7 +81,8 @@ defmodule ObanChore.Worker do
           module: __MODULE__,
           name: unquote(name_ast),
           description: unquote(chore_description),
-          fields: unquote(chore_fields)
+          fields: unquote(chore_fields),
+          unique: unquote(has_unique)
         }
       end
 

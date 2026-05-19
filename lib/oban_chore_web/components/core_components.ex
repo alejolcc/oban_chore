@@ -179,6 +179,48 @@ defmodule ObanChoreWeb.CoreComponents do
     """
   end
 
+  @doc """
+  Renders a toggle for unique execution.
+  """
+  attr(:unique_execution, :boolean, required: true)
+  attr(:worker_has_unique, :boolean, required: true)
+  attr(:phx_click, :string, default: "toggle_unique")
+
+  def unique_execution_toggle(assigns) do
+    ~H"""
+    <div class="relative flex items-center gap-2 group">
+      <input
+        type="checkbox"
+        id="unique_execution"
+        phx-click={if not @worker_has_unique, do: @phx_click}
+        checked={@unique_execution}
+        disabled={@worker_has_unique}
+        class={[
+          "h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand",
+          if(@worker_has_unique, do: "opacity-50 cursor-not-allowed", else: "cursor-pointer")
+        ]}
+      />
+      <label
+        for="unique_execution"
+        class={[
+          "text-sm font-medium text-gray-700 select-none",
+          if(@worker_has_unique, do: "opacity-50 cursor-not-allowed", else: "cursor-pointer")
+        ]}
+      >
+        Unique per args
+      </label>
+      <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-3 py-2 bg-gray-900 text-white text-[10px] leading-tight rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none w-48 text-center z-20">
+        <%= if @worker_has_unique do %>
+          Uniqueness is enforced by the worker definition.
+        <% else %>
+          Uses Oban's uniqueness engine to ensure only one job with these exact arguments can run at a time.
+        <% end %>
+        <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+      </div>
+    </div>
+    """
+  end
+
   defp error_list(assigns) do
     ~H"""
     <%= for msg <- @errors do %>
