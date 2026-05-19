@@ -36,6 +36,18 @@ defmodule ObanChore do
     :ok
   end
 
+  @doc """
+  Counts the number of running (available, scheduled, executing) jobs for a given worker module.
+  """
+  def count_running(worker_module, oban_name \\ Oban) do
+    config = Oban.config(oban_name)
+    repo = config.repo
+
+    [state: ~w(available scheduled executing), worker: worker_module]
+    |> Oban.Job.query()
+    |> repo.aggregate(:count, :id)
+  end
+
   @doc false
   def pubsub_server do
     Application.get_env(:oban_chore, :pubsub_server)

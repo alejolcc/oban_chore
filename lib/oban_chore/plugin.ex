@@ -10,6 +10,7 @@ defmodule ObanChore.Plugin do
   @behaviour Oban.Plugin
 
   use GenServer
+  require Logger
 
   @impl Oban.Plugin
   def validate(opts) do
@@ -43,7 +44,71 @@ defmodule ObanChore.Plugin do
   @impl GenServer
   def handle_continue(:discover_chores, state) do
     chores = discover_chores(state.opts)
-    {:noreply, %{state | chores: chores}}
+    {:noreply, %{state | chores: chores}, {:continue, :attach_telemetry}}
+  end
+
+  @impl GenServer
+  def handle_continue(:attach_telemetry, state) do
+    if pubsub_server = ObanChore.pubsub_server() do
+      oban_name = if state.opts[:conf], do: state.opts[:conf].name, else: Oban
+      handler_id = {:oban_chore_counts, oban_name}
+
+      :telemetry.attach_many(
+        handler_id,
+        [
+          [:oban, :job, :insert, :stop],
+          [:oban, :job, :start],
+          [:oban, :job, :stop],
+          [:oban, :job, :exception]
+        ],
+        &__MODULE__.handle_telemetry/4,
+        %{oban_name: oban_name, pubsub_server: pubsub_server, chores: state.chores}
+      )
+    end
+
+    {:noreply, state}
+  end
+
+  @doc false
+  def handle_telemetry(event, _measurements, metadata, %{
+        oban_name: oban_name,
+        pubsub_server: pubsub_server,
+        chores: chores
+      }) do
+    if metadata.conf.name == oban_name do
+      jobs =
+        case metadata do
+          %{job: job} -> [job]
+          %{jobs: jobs} -> jobs
+          _ -> []
+        end
+
+      workers = jobs |> Enum.map(& &1.worker) |> Enum.uniq()
+
+      for worker_str <- workers do
+        # Robust matching: Oban worker strings can be "Elixir.Mod" or just "Mod"
+        # or even custom names. We check against the module atom string.
+        chore =
+          Enum.find(chores, fn c ->
+            c_mod_str = to_string(c.module)
+            c_mod_str == worker_str or c_mod_str == "Elixir." <> worker_str
+          end)
+
+        if chore do
+          count = ObanChore.count_running(chore.module, oban_name)
+
+          Logger.debug(
+            "[ObanChore] Telemetry #{inspect(event)} for #{chore.module}. New count: #{count}. Broadcasting to #{pubsub_server}"
+          )
+
+          Phoenix.PubSub.broadcast(
+            pubsub_server,
+            "oban_chore:counts",
+            {:oban_chore_count, chore.module, count}
+          )
+        end
+      end
+    end
   end
 
   @doc """

@@ -2,6 +2,10 @@ defmodule ObanChoreWeb.DashboardLive do
   use Phoenix.LiveView
   import ObanChoreWeb.CoreComponents
 
+  require Logger
+
+  @refresh_interval 5000
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -24,14 +28,15 @@ defmodule ObanChoreWeb.DashboardLive do
               phx-click="select_chore"
               phx-value-module={to_string(chore.module)}
               class={[
-                "w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                "w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-between",
                 if(@selected_chore && @selected_chore.module == chore.module,
                   do: "bg-brand/10 text-brand",
                   else: "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                 )
               ]}
             >
-              <%= chore.name %>
+              <span><%= chore.name %></span>
+              <.badge count={@counts[chore.module] || 0} />
             </button>
           <% end %>
         </nav>
@@ -124,10 +129,20 @@ defmodule ObanChoreWeb.DashboardLive do
   @impl true
   def mount(_params, _session, socket) do
     chores = ObanChore.Plugin.get_chores()
+    pubsub = ObanChore.pubsub_server()
+
+    if connected?(socket) do
+      if pubsub do
+        Phoenix.PubSub.subscribe(pubsub, "oban_chore:counts")
+      else
+        :timer.send_interval(@refresh_interval, self(), :refresh_counts)
+      end
+    end
 
     {:ok,
      assign(socket,
        chores: chores,
+       counts: fetch_counts(chores),
        selected_chore: nil,
        form: to_form(%{}, as: :args),
        logs: [],
@@ -192,6 +207,18 @@ defmodule ObanChoreWeb.DashboardLive do
   end
 
   @impl true
+  def handle_info(:refresh_counts, socket) do
+    {:noreply, assign(socket, counts: fetch_counts(socket.assigns.chores))}
+  end
+
+  @impl true
+  def handle_info({:oban_chore_count, worker_module, count}, socket) do
+    Logger.debug("[ObanChore Dashboard] Received count update for #{worker_module}: #{count}")
+    new_counts = Map.put(socket.assigns.counts, worker_module, count)
+    {:noreply, assign(socket, counts: new_counts)}
+  end
+
+  @impl true
   def handle_info({:oban_chore_log, job_id, message}, socket) do
     if job_id == socket.assigns.active_job_id do
       {:noreply, assign(socket, logs: [message | socket.assigns.logs])}
@@ -208,5 +235,11 @@ defmodule ObanChoreWeb.DashboardLive do
       :boolean -> "checkbox"
       other -> to_string(other)
     end
+  end
+
+  defp fetch_counts(chores) do
+    # For now we use the default Oban name.
+    # In the future we can make this configurable via the dashboard mount options.
+    Map.new(chores, fn chore -> {chore.module, ObanChore.count_running(chore.module, Oban)} end)
   end
 end

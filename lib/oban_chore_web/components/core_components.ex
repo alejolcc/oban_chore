@@ -111,6 +111,26 @@ defmodule ObanChoreWeb.CoreComponents do
     """
   end
 
+  @doc """
+  Renders a numeric badge.
+  """
+  attr(:count, :integer, required: true)
+  attr(:class, :string, default: nil)
+
+  def badge(assigns) do
+    ~H"""
+    <span
+      :if={@count > 0}
+      class={[
+        "inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10",
+        @class
+      ]}
+    >
+      <%= @count %>
+    </span>
+    """
+  end
+
   defp error_list(assigns) do
     ~H"""
     <%= for msg <- @errors do %>
