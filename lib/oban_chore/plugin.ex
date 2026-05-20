@@ -147,12 +147,9 @@ defmodule ObanChore.Plugin do
     end
   end
 
-  defp event_to_state([:oban, :job, :start], job) do
-     dbg(job)
-     :executing
-  end
+  # TODO: This is actually needed? I think we can just rely on the job state for this, but let's keep it for now in case we want to do something more specific with the events in the future.
+  defp event_to_state([:oban, :job, :start], _job), do: :executing
   defp event_to_state([:oban, :job, :stop], _job), do: :completed
-
   defp event_to_state([:oban, :job, :exception], job) do
     if job.state == "discarded", do: :discarded, else: :retryable
   end
