@@ -36,6 +36,36 @@ defmodule ObanChore.Plugin do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @doc """
+  Retrieves the list of discovered chores.
+  """
+  def get_chores do
+    # During testing or if not started within Oban, handle missing process
+    case GenServer.whereis(__MODULE__) do
+      nil -> []
+      pid -> GenServer.call(pid, :get_chores)
+    end
+  end
+
+  @doc false
+  def handle_telemetry(event, _measurements, metadata, %{
+        oban_name: oban_name,
+        pubsub_server: pubsub_server,
+        chores: chores
+      }) do
+    if metadata.conf.name == oban_name do
+      jobs = extract_jobs(metadata)
+      workers = jobs |> Enum.map(& &1.worker) |> Enum.uniq()
+
+      for worker_str <- workers, chore = find_chore(chores, worker_str) do
+        broadcast_job_status(pubsub_server, event, jobs, worker_str)
+        broadcast_chore_count(pubsub_server, oban_name, chore.module, event)
+      end
+    end
+  end
+
+  # --- GenServer Callbacks ---
+
   @impl GenServer
   def init(opts) do
     {:ok, %{opts: opts, chores: []}, {:continue, :discover_chores}}
@@ -69,88 +99,66 @@ defmodule ObanChore.Plugin do
     {:noreply, state}
   end
 
-  @doc false
-  def handle_telemetry(event, _measurements, metadata, %{
-        oban_name: oban_name,
-        pubsub_server: pubsub_server,
-        chores: chores
-      }) do
-    if metadata.conf.name == oban_name do
-      jobs =
-        case metadata do
-          %{job: job} -> [job]
-          %{jobs: jobs} -> jobs
-          _ -> []
-        end
-
-      workers = jobs |> Enum.map(& &1.worker) |> Enum.uniq()
-
-      for worker_str <- workers do
-        # Robust matching: Oban worker strings can be "Elixir.Mod" or just "Mod"
-        # or even custom names. We check against the module atom string.
-        chore =
-          Enum.find(chores, fn c ->
-            c_mod_str = to_string(c.module)
-            c_mod_str == worker_str or c_mod_str == "Elixir." <> worker_str
-          end)
-
-        if chore do
-          # Broadcast state changes for specific jobs if available
-          for job <- jobs, job.worker == worker_str do
-            state = event_to_state(event, job)
-
-            Phoenix.PubSub.broadcast(
-              pubsub_server,
-              "oban_chore:status:#{job.id}",
-              {:oban_chore_state, job.id, state}
-            )
-          end
-
-          # Broadcast counts (requires running Oban instance)
-          try do
-            count = ObanChore.count_running(chore.module, oban_name)
-
-            Logger.debug(
-              "[ObanChore] Telemetry #{inspect(event)} for #{chore.module}. New count: #{count}. Broadcasting to #{pubsub_server}"
-            )
-
-            Phoenix.PubSub.broadcast(
-              pubsub_server,
-              "oban_chore:counts",
-              {:oban_chore_count, chore.module, count}
-            )
-          rescue
-            _ -> :ok
-          end
-        end
-      end
-    end
-  end
-
-  @doc """
-  Retrieves the list of discovered chores.
-  """
-  def get_chores do
-    # During testing or if not started within Oban, handle missing process
-    case GenServer.whereis(__MODULE__) do
-      nil -> []
-      pid -> GenServer.call(pid, :get_chores)
-    end
-  end
-
   @impl GenServer
   def handle_call(:get_chores, _from, state) do
     {:reply, state.chores, state}
   end
 
-  defp event_to_state([:oban, :job, :start], _job), do: :executing
+  # --- Private Helpers ---
+
+  defp extract_jobs(%{job: job}), do: [job]
+  defp extract_jobs(%{jobs: jobs}), do: jobs
+  defp extract_jobs(_), do: []
+
+  defp find_chore(chores, worker_str) do
+    Enum.find(chores, fn c ->
+      c_mod_str = to_string(c.module)
+      c_mod_str == worker_str or c_mod_str == "Elixir." <> worker_str
+    end)
+  end
+
+  defp broadcast_job_status(pubsub_server, event, jobs, worker_str) do
+    for job <- jobs, job.worker == worker_str do
+      state = event_to_state(event, job)
+
+      Phoenix.PubSub.broadcast(
+        pubsub_server,
+        "oban_chore:status:#{job.id}",
+        {:oban_chore_state, job.id, state}
+      )
+    end
+  end
+
+  defp broadcast_chore_count(pubsub_server, oban_name, chore_module, event) do
+    try do
+      count = ObanChore.count_running(chore_module, oban_name)
+
+      Logger.debug(
+        "[ObanChore] Telemetry #{inspect(event)} for #{chore_module}. New count: #{count}. Broadcasting to #{pubsub_server}"
+      )
+
+      Phoenix.PubSub.broadcast(
+        pubsub_server,
+        "oban_chore:counts",
+        {:oban_chore_count, chore_module, count}
+      )
+    rescue
+      _ -> :ok
+    end
+  end
+
+  defp event_to_state([:oban, :job, :start], job) do
+     dbg(job)
+     :executing
+  end
   defp event_to_state([:oban, :job, :stop], _job), do: :completed
 
   defp event_to_state([:oban, :job, :exception], job) do
     if job.state == "discarded", do: :discarded, else: :retryable
   end
 
-  defp event_to_state(_event, job), do: String.to_existing_atom(job.state)
+  # Because Oban Job state have a finite set of values, we can safely convert them to atoms
+  defp event_to_state(_event, job), do: String.to_atom(job.state)
 
   defp discover_chores(opts) do
     apps =
