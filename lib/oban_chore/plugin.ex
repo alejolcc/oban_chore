@@ -95,17 +95,33 @@ defmodule ObanChore.Plugin do
           end)
 
         if chore do
-          count = ObanChore.count_running(chore.module, oban_name)
+          # Broadcast state changes for specific jobs if available
+          for job <- jobs, job.worker == worker_str do
+            state = event_to_state(event, job)
 
-          Logger.debug(
-            "[ObanChore] Telemetry #{inspect(event)} for #{chore.module}. New count: #{count}. Broadcasting to #{pubsub_server}"
-          )
+            Phoenix.PubSub.broadcast(
+              pubsub_server,
+              "oban_chore:status:#{job.id}",
+              {:oban_chore_state, job.id, state}
+            )
+          end
 
-          Phoenix.PubSub.broadcast(
-            pubsub_server,
-            "oban_chore:counts",
-            {:oban_chore_count, chore.module, count}
-          )
+          # Broadcast counts (requires running Oban instance)
+          try do
+            count = ObanChore.count_running(chore.module, oban_name)
+
+            Logger.debug(
+              "[ObanChore] Telemetry #{inspect(event)} for #{chore.module}. New count: #{count}. Broadcasting to #{pubsub_server}"
+            )
+
+            Phoenix.PubSub.broadcast(
+              pubsub_server,
+              "oban_chore:counts",
+              {:oban_chore_count, chore.module, count}
+            )
+          rescue
+            _ -> :ok
+          end
         end
       end
     end
@@ -126,6 +142,15 @@ defmodule ObanChore.Plugin do
   def handle_call(:get_chores, _from, state) do
     {:reply, state.chores, state}
   end
+
+  defp event_to_state([:oban, :job, :start], _job), do: :executing
+  defp event_to_state([:oban, :job, :stop], _job), do: :completed
+
+  defp event_to_state([:oban, :job, :exception], job) do
+    if job.state == "discarded", do: :discarded, else: :retryable
+  end
+
+  defp event_to_state(_event, job), do: String.to_existing_atom(job.state)
 
   defp discover_chores(opts) do
     apps =
