@@ -2,7 +2,7 @@
 
 **Bridge the gap between robust background processing and safe, manual operational control in Elixir.**
 
-ObanChore is an Elixir library that transforms your standard Oban workers into secure, UI-driven operational tools. It automatically generates a Phoenix LiveView dashboard allowing your team to trigger, monitor, and audit ad-hoc scripts and backfills without touching a production console.
+ObanChore is an Elixir library that transforms your standard Oban workers into secure, UI-driven operational tools. It automatically generates a Phoenix LiveView dashboard allowing your team to trigger and monitor ad-hoc scripts and backfills without touching a production console.
 
 ![ObanChore Dashboard Preview](assets/dashboard_preview.gif)
 
@@ -23,7 +23,7 @@ Historically, executing these scripts involves:
 
 ObanChore solves this by bringing operations out of the terminal and into a secure UI, backed by the resilience of Oban. 
 
-Instead of writing a disposable script, developers write a standard, resilient Oban worker and declare its expected inputs (e.g., `user_id`, `reason`). ObanChore dynamically reads these declarations and **automatically generates a secure Phoenix LiveView interface**.
+Instead of writing a disposable script, developers write a standard, resilient and testeable Oban worker and declare its expected inputs (e.g., `user_id`, `reason`). ObanChore dynamically reads these declarations and **automatically generates a secure Phoenix LiveView interface**.
 
 ```elixir
 defmodule MyApp.Chores.UserBackfill do
@@ -31,8 +31,13 @@ defmodule MyApp.Chores.UserBackfill do
     name: "User Data Backfill",
     fields: [
       user_id: [type: :integer, required: true, label: "User ID"],
-      role: [ type: :select, options: [Admin: 2, Editor: 1, Viewer: 3], prompt: "Choose a role..." ],
-      reason: [type: :textarea, required: true, label: "Reason"],
+      role: [
+        type: :select,
+        options: [Admin: 1, Editor: 2, Viewer: 3],
+        prompt: "Choose a role..."
+      ],
+      sleep_time: [type: :integer, label: "Sleep Time (ms)", default: 3000],
+      reason: [type: :textarea, label: "Reason"],
       notify_user: [type: :boolean, label: "Notify User?"]
     ],
     description: "Backfill user data with new fields and values."
@@ -47,13 +52,13 @@ defmodule MyApp.Chores.UserBackfill do
 end
 ```
 
-Support, QA, or Product Managers can now log into an admin dashboard, fill out a user-friendly form, and safely trigger the job—while Oban handles the reliable, asynchronous execution in the background.
+Support, QA, or Product Managers can now go to admin dashboard, fill out a user-friendly form, and safely trigger the job—while Oban handles the reliable, asynchronous execution in the background.
 
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
 
-ObanChore requires a working Phoenix application with **LiveView 1.0+** and **Oban 2.18+** installed and configured.
+ObanChore requires a working Phoenix application with **LiveView** and **Oban 2.15+** installed and configured.
 
 ### 2. Install Dependency
 
@@ -81,8 +86,6 @@ config :my_app, Oban,
   ],
   queues: [default: 10]
 ```
-
-> **Note:** Providing `pubsub_server` here is the recommended way to enable real-time logs and status updates in the dashboard.
 
 
 ### 4. Define a Chore
@@ -135,29 +138,13 @@ end
 
 ---
 
-## ⚙️ Real-Time Monitoring & Status
+## ⚙️ Real-Time Monitoring
 
 ObanChore provides deep visibility into your operational tasks as they happen.
 
-### Status Tracking
-
-The dashboard automatically tracks and displays the lifecycle of every job triggered from the UI. Using Oban's telemetry events, the dashboard shows real-time status indicators (dots) for:
-
-* 🔵 **Executing:** The job is currently running.
-* ⚪ **Available:** The job is in the queue waiting for a worker.
-* 🟡 **Scheduled:** The job is set to run at a future time.
-* 🟢 **Completed:** The job finished successfully.
-* 🔴 **Discarded:** The job failed and will not be retried.
-
-### Tabbed Execution View
-
-ObanChore allows you to monitor multiple executions of the same chore simultaneously. Each execution gets its own dedicated tab in the dashboard, containing its specific arguments and live console output.
-
 ### Live Console Logging
 
-To stream custom logs from your workers to the dashboard, ensure you've configured the `pubsub_server` in the plugin options as shown above.
-
-Then, use `ObanChore.log/2` inside your worker's `perform/1` function:
+To stream custom logs from your workers use `ObanChore.log/2` inside your worker's `perform/1` function:
 
 ```elixir
 defmodule MyApp.Chores.UserBackfill do
@@ -209,14 +196,40 @@ Each field can be customized with the following options:
 
 ---
 
+## ⚙️ Advanced Configuration
+
+Since `ObanChore.Worker` is a wrapper around `Oban.Worker`, you can use all standard Oban options:
+
+```elixir
+defmodule MyApp.Chores.CriticalBackfill do
+  use ObanChore.Worker,
+    name: "Critical Data Backfill",
+    queue: :operational,        # Run in a specific queue
+    max_attempts: 5,            # Set custom retry limit
+    priority: 1,                # Set job priority
+    unique: [period: 60],       # Set custom uniqueness
+    fields: [
+      user_id: [type: :integer, required: true]
+    ]
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: args}) do
+    # ...
+  end
+end
+```
+
+> **Note on Uniqueness:** If you define `unique` options directly in the worker module (as shown above), they will **override** the default unique behavior of the dashboard. The manual "Unique per args" toggle in the UI will be disabled to respect your worker's specific constraints.
+
+---
+
 ## ✨ Core Features
 
 * 🛠️ **Zero-Boilerplate Internal Tooling:** Stop building custom HTML forms and controllers for one-off admin tasks. Define your argument schema once in the backend, and let ObanChore generate the UI.
 * 📡 **Live Execution Streaming:** Leveraging Phoenix PubSub and Telemetry, ObanChore streams logs and status updates from the background process directly back to the user's browser in real-time.
-* 📑 **Multi-Job Tracking:** Monitor multiple concurrent or past executions for each chore through a clean tabbed interface.
 * 🔐 **Operational Safety:** 
     * **Idempotency Check:** Automatically detects if a job with the same arguments is already running.
-    * **Unique Execution Toggle:** Manually enforce single-job execution via the dashboard UI.
+    * **Unique Execution Toggle:** Manually enforce single-job execution via the dashboard UI. (you can override this from the job definition)
     * **Validation:** Full Ecto-backed validation for all chore arguments.
 * 🚦 **Concurrency Control:** Piggyback on Oban's powerful concurrency and unique job features to control your operational load.
 
