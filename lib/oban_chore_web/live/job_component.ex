@@ -51,8 +51,8 @@ defmodule ObanChoreWeb.JobComponent do
                 No logs yet.
               <% end %>
             <% else %>
-              <div class="space-y-1">
-                <%= for log <- Enum.reverse(@logs) do %>
+              <div class="flex flex-col-reverse gap-1">
+                <%= for log <- @logs do %>
                   <div class="flex gap-2">
                     <span class="text-slate-600 select-none">$</span>
                     <span><%= log %></span>

@@ -74,7 +74,7 @@ defmodule ObanChoreWeb.DashboardLive do
                 >
                   New Execution
                 </button>
-                <%= for job <- Map.get(@active_jobs, @selected_chore_module, []) do %>
+                <%= for job_id <- Map.get(@chore_jobs, @selected_chore_module, []), job = @jobs[job_id] do %>
                   <button
                     phx-click="select_tab"
                     phx-value-tab={"job_#{job.id}"}
@@ -112,7 +112,7 @@ defmodule ObanChoreWeb.DashboardLive do
                 />
               <% end %>
 
-              <%= for {module, jobs} <- @active_jobs, job <- jobs do %>
+              <%= for {module, job_ids} <- @chore_jobs, job_id <- job_ids, job = @jobs[job_id] do %>
                   <%= if @selected_chore_module == module do %>
                     <.live_component
                       module={ObanChoreWeb.JobComponent}
@@ -154,8 +154,8 @@ defmodule ObanChoreWeb.DashboardLive do
     end
 
     # Fetch initial active jobs and subscribe to them
-    active_jobs =
-      Map.new(chores, fn chore ->
+    {jobs, chore_jobs} =
+      Enum.reduce(chores, {%{}, %{}}, fn chore, {jobs_acc, chore_jobs_acc} ->
         jobs = ObanChore.list_active_jobs(chore.module)
 
         if connected?(socket) and pubsub do
@@ -165,7 +165,10 @@ defmodule ObanChoreWeb.DashboardLive do
           end
         end
 
-        {chore.module, jobs}
+        new_jobs_acc = Enum.reduce(jobs, jobs_acc, fn job, acc -> Map.put(acc, job.id, job) end)
+        new_chore_jobs_acc = Map.put(chore_jobs_acc, chore.module, Enum.map(jobs, & &1.id))
+
+        {new_jobs_acc, new_chore_jobs_acc}
       end)
 
     {:ok,
@@ -173,7 +176,8 @@ defmodule ObanChoreWeb.DashboardLive do
        chores: chores,
        counts: fetch_counts(chores),
        selected_chore_module: nil,
-       active_jobs: active_jobs,
+       jobs: jobs,
+       chore_jobs: chore_jobs,
        selected_tab: :new
      )}
   end
@@ -213,36 +217,27 @@ defmodule ObanChoreWeb.DashboardLive do
       Phoenix.PubSub.subscribe(pubsub, "oban_chore:status:#{job.id}")
     end
 
-    new_active_jobs =
-      Map.update(socket.assigns.active_jobs, worker_module, [job], fn jobs ->
-        # Deduplicate to prevent "duplicate ID" error in LiveView components
-        if Enum.any?(jobs, &(&1.id == job.id)), do: jobs, else: [job | jobs]
+    new_jobs = Map.put(socket.assigns.jobs, job.id, job)
+
+    new_chore_jobs =
+      Map.update(socket.assigns.chore_jobs, worker_module, [job.id], fn job_ids ->
+        if job.id in job_ids, do: job_ids, else: [job.id | job_ids]
       end)
 
     {:noreply,
      socket
-     |> assign(active_jobs: new_active_jobs, selected_tab: {:job, job.id})}
+     |> assign(jobs: new_jobs, chore_jobs: new_chore_jobs, selected_tab: {:job, job.id})}
   end
 
   @impl true
   def handle_info({:oban_chore_state, job_id, state}, socket) do
-    # Update job state in the active_jobs map
-    # TODO: This is a bit inefficient as it iterates through all jobs. For large numbers of jobs, consider indexing active_jobs by job ID for O(1) updates.
-    new_active_jobs =
-      Map.new(socket.assigns.active_jobs, fn {module, jobs} ->
-        new_jobs =
-          Enum.map(jobs, fn
-            %{id: ^job_id} = job -> %{job | state: state}
-            job -> job
-          end)
-
-        {module, new_jobs}
-      end)
+    # O(1) update of the flat jobs map
+    new_jobs = Map.update!(socket.assigns.jobs, job_id, fn job -> %{job | state: state} end)
 
     # Forward to JobComponent
     send_update(ObanChoreWeb.JobComponent, id: job_id, new_state: state)
 
-    {:noreply, assign(socket, active_jobs: new_active_jobs)}
+    {:noreply, assign(socket, jobs: new_jobs)}
   end
 
   @impl true

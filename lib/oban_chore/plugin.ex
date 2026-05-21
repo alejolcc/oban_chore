@@ -143,7 +143,12 @@ defmodule ObanChore.Plugin do
         {:oban_chore_count, chore_module, count}
       )
     rescue
-      _ -> :ok
+      e ->
+        Logger.error(
+          "[ObanChore] Failed to broadcast chore count for #{chore_module}: #{inspect(e)}"
+        )
+
+        :ok
     end
   end
 
@@ -156,7 +161,7 @@ defmodule ObanChore.Plugin do
   end
 
   # Because Oban Job state have a finite set of values, we can safely convert them to atoms
-  defp event_to_state(_event, job), do: String.to_atom(job.state)
+  defp event_to_state(_event, job), do: String.to_existing_atom(job.state)
 
   defp discover_chores(opts) do
     apps =
