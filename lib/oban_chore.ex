@@ -60,6 +60,19 @@ defmodule ObanChore do
     |> repo.exists?()
   end
 
+  @doc """
+  Lists the active (available, scheduled, executing) jobs for a given worker module.
+  """
+  def list_active_jobs(worker_module, oban_name \\ Oban) do
+    config = Oban.config(oban_name)
+    repo = config.repo
+
+    [state: ~w(available scheduled executing), worker: worker_module]
+    |> Oban.Job.query()
+    |> repo.all()
+    |> Enum.map(fn job -> %{job | state: String.to_existing_atom(job.state)} end)
+  end
+
   @doc false
   def pubsub_server do
     Application.get_env(:oban_chore, :pubsub_server)

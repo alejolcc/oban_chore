@@ -136,10 +136,11 @@ defmodule ObanChoreWeb.CoreComponents do
   """
   attr(:on_confirm, :string, required: true)
   attr(:on_cancel, :string, required: true)
+  attr(:rest, :global)
 
   def duplicate_warning_banner(assigns) do
     ~H"""
-    <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-md shadow-sm">
+    <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-md shadow-sm" {@rest}>
       <div class="flex">
         <div class="flex-shrink-0">
           <svg class="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -161,6 +162,7 @@ defmodule ObanChoreWeb.CoreComponents do
             <button
               type="button"
               phx-click={@on_confirm}
+              phx-target={Map.get(@rest, :"phx-target")}
               class="rounded-md bg-amber-100 px-2.5 py-1.5 text-sm font-semibold text-amber-900 shadow-sm hover:bg-amber-200"
             >
               Confirm anyway
@@ -168,6 +170,7 @@ defmodule ObanChoreWeb.CoreComponents do
             <button
               type="button"
               phx-click={@on_cancel}
+              phx-target={Map.get(@rest, :"phx-target")}
               class="text-sm font-semibold text-amber-900 hover:text-amber-800"
             >
               Cancel
@@ -184,15 +187,17 @@ defmodule ObanChoreWeb.CoreComponents do
   """
   attr(:unique_execution, :boolean, required: true)
   attr(:worker_has_unique, :boolean, required: true)
-  attr(:phx_click, :string, default: "toggle_unique")
+  attr(:phx_click, :any, default: "toggle_unique")
+  attr(:rest, :global)
 
   def unique_execution_toggle(assigns) do
     ~H"""
-    <div class="relative flex items-center gap-2 group">
+    <div class="relative flex items-center gap-2 group" {@rest}>
       <input
         type="checkbox"
         id="unique_execution"
         phx-click={if not @worker_has_unique, do: @phx_click}
+        phx-target={Map.get(@rest, :"phx-target")}
         checked={@unique_execution}
         disabled={@worker_has_unique}
         class={[

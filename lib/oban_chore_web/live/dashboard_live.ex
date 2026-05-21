@@ -29,7 +29,7 @@ defmodule ObanChoreWeb.DashboardLive do
               phx-value-module={to_string(chore.module)}
               class={[
                 "w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-between",
-                if(@selected_chore && @selected_chore.module == chore.module,
+                if(@selected_chore_module == chore.module,
                   do: "bg-brand/10 text-brand",
                   else: "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                 )
@@ -46,80 +46,82 @@ defmodule ObanChoreWeb.DashboardLive do
       <main class="flex-1 overflow-y-auto p-8 relative">
         <.flash_group flash={@flash} />
 
-        <%= if @selected_chore do %>
+        <%= if @selected_chore_module do %>
+          <% chore = Enum.find(@chores, &(&1.module == @selected_chore_module)) %>
           <div class="max-w-4xl mx-auto space-y-8">
             <div class="border-b border-gray-200 pb-5">
               <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
-                <%= @selected_chore.name %>
+                <%= chore.name %>
               </h2>
               <p class="mt-2 text-sm text-gray-500">
-                <%= @selected_chore.description || "Configure and execute this chore." %>
+                <%= chore.description || "Configure and execute this chore." %>
               </p>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <!-- Form Section -->
-              <div class="space-y-6">
-                <%= if @duplicate_warning do %>
-                  <.duplicate_warning_banner on_confirm="confirm_execute" on_cancel="cancel_execute" />
+            <!-- Tabs -->
+            <div class="border-b border-gray-200">
+              <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                <button
+                  phx-click="select_tab"
+                  phx-value-tab="new"
+                  class={[
+                    "whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium",
+                    if(@selected_tab == :new,
+                      do: "border-brand text-brand",
+                      else: "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                    )
+                  ]}
+                >
+                  New Execution
+                </button>
+                <%= for job_id <- Map.get(@chore_jobs, @selected_chore_module, []), job = @jobs[job_id] do %>
+                  <button
+                    phx-click="select_tab"
+                    phx-value-tab={"job_#{job.id}"}
+                    class={[
+                      "whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium flex items-center gap-2",
+                      if(@selected_tab == {:job, job.id},
+                        do: "border-brand text-brand",
+                        else: "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                      )
+                    ]}
+                  >
+                    <span>Job #<%= job.id %></span>
+                    <span class={[
+                      "w-2 h-2 rounded-full",
+                      case job.state do
+                        :executing -> "bg-blue-500 animate-pulse"
+                        :available -> "bg-gray-400"
+                        :scheduled -> "bg-yellow-400"
+                        _ -> "bg-gray-400"
+                      end
+                    ]}></span>
+                  </button>
                 <% end %>
-
-                <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-                  <div class="px-4 py-6 sm:p-8">
-                    <.form for={@form} phx-change="validate" phx-submit="execute" class="space-y-6">
-                    <%= for {field, opts} <- @selected_chore.fields do %>
-                      <.input
-                        field={@form[field]}
-                        label={Keyword.get(opts, :label, field)}
-                        type={type_to_input_type(Keyword.get(opts, :type))}
-                        default={Keyword.get(opts, :default)}
-                        options={Keyword.get(opts, :options, [])}
-                        prompt={Keyword.get(opts, :prompt)}
-                      />
-                    <% end %>
-
-                    <div class="flex items-center justify-end gap-x-6 border-t border-gray-900/10 pt-6">
-                      <.unique_execution_toggle
-                        unique_execution={@unique_execution}
-                        worker_has_unique={@selected_chore.unique}
-                      />
-                      <button
-                        type="submit"
-                        class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                      >
-                        Execute Chore
-                      </button>
-                    </div>
-                  </.form>
-                </div>
-              </div>
+              </nav>
             </div>
 
-            <!-- Logs Section -->
-            <div class="space-y-4">
-                <h3 class="text-sm font-semibold text-gray-900">Execution Logs</h3>
-                <div class={[
-                  "bg-slate-900 rounded-lg p-4 font-mono text-xs overflow-y-auto h-[400px] border border-slate-800 shadow-inner",
-                  if(@logs == [], do: "flex items-center justify-center text-slate-500 italic", else: "text-slate-300")
-                ]}>
-                  <%= if @logs == [] do %>
-                    <%= if @active_job_id do %>
-                      Waiting for logs...
-                    <% else %>
-                      No active execution.
-                    <% end %>
-                  <% else %>
-                    <div class="space-y-1">
-                      <%= for log <- Enum.reverse(@logs) do %>
-                        <div class="flex gap-2">
-                          <span class="text-slate-600 select-none">$</span>
-                          <span><%= log %></span>
-                        </div>
-                      <% end %>
-                    </div>
+            <!-- Content Area -->
+            <div class="mt-8">
+              <%= for chore_item <- @chores do %>
+                <.live_component
+                  module={ObanChoreWeb.ChoreComponent}
+                  id={chore_item.module}
+                  chore={chore_item}
+                  selected={@selected_chore_module == chore_item.module and @selected_tab == :new}
+                />
+              <% end %>
+
+              <%= for {module, job_ids} <- @chore_jobs, job_id <- job_ids, job = @jobs[job_id] do %>
+                  <%= if @selected_chore_module == module do %>
+                    <.live_component
+                      module={ObanChoreWeb.JobComponent}
+                      id={job.id}
+                      job={job}
+                      selected={@selected_tab == {:job, job.id}}
+                    />
                   <% end %>
-                </div>
-              </div>
+              <% end %>
             </div>
           </div>
         <% else %>
@@ -151,119 +153,50 @@ defmodule ObanChoreWeb.DashboardLive do
       end
     end
 
+    # Fetch initial active jobs and subscribe to them
+    {jobs, chore_jobs} =
+      Enum.reduce(chores, {%{}, %{}}, fn chore, {jobs_acc, chore_jobs_acc} ->
+        jobs = ObanChore.list_active_jobs(chore.module)
+
+        if connected?(socket) and pubsub do
+          for job <- jobs do
+            Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
+            Phoenix.PubSub.subscribe(pubsub, "oban_chore:status:#{job.id}")
+          end
+        end
+
+        new_jobs_acc = Enum.reduce(jobs, jobs_acc, fn job, acc -> Map.put(acc, job.id, job) end)
+        new_chore_jobs_acc = Map.put(chore_jobs_acc, chore.module, Enum.map(jobs, & &1.id))
+
+        {new_jobs_acc, new_chore_jobs_acc}
+      end)
+
     {:ok,
      assign(socket,
        chores: chores,
        counts: fetch_counts(chores),
-       selected_chore: nil,
-       form: to_form(%{}, as: :args),
-       logs: [],
-       active_job_id: nil,
-       duplicate_warning: nil,
-       unique_execution: true
+       selected_chore_module: nil,
+       jobs: jobs,
+       chore_jobs: chore_jobs,
+       selected_tab: :new
      )}
-  end
-
-  @impl true
-  def handle_event("toggle_unique", _params, socket) do
-    {:noreply, assign(socket, unique_execution: not socket.assigns.unique_execution)}
   end
 
   @impl true
   def handle_event("select_chore", %{"module" => module_str}, socket) do
     module = String.to_existing_atom(module_str)
-    chore = Enum.find(socket.assigns.chores, fn c -> c.module == module end)
-
-    # Initialize form with defaults
-    defaults =
-      Enum.into(chore.fields, %{}, fn {name, opts} ->
-        {to_string(name), Keyword.get(opts, :default)}
-      end)
-
-    {:noreply,
-     assign(socket,
-       selected_chore: chore,
-       form: to_form(chore.module.changeset(defaults), as: :args),
-       logs: [],
-       active_job_id: nil,
-       duplicate_warning: nil,
-       unique_execution: chore.unique || true
-     )}
+    {:noreply, assign(socket, selected_chore_module: module, selected_tab: :new)}
   end
 
   @impl true
-  def handle_event("validate", %{"args" => params}, socket) do
-    changeset =
-      socket.assigns.selected_chore.module.changeset(params)
-      |> Map.put(:action, :validate)
-
-    {:noreply, assign(socket, form: to_form(changeset, as: :args), duplicate_warning: nil)}
+  def handle_event("select_tab", %{"tab" => "new"}, socket) do
+    {:noreply, assign(socket, selected_tab: :new)}
   end
 
   @impl true
-  def handle_event("execute", %{"args" => params}, socket) do
-    chore = socket.assigns.selected_chore
-    changeset = chore.module.changeset(params)
-
-    if changeset.valid? do
-      casted_args = Ecto.Changeset.apply_changes(changeset)
-
-      if ObanChore.running_with_args?(chore.module, casted_args) do
-        {:noreply, assign(socket, duplicate_warning: params)}
-      else
-        perform_execute(socket, chore, casted_args)
-      end
-    else
-      {:noreply, assign(socket, form: to_form(Map.put(changeset, :action, :insert), as: :args))}
-    end
-  end
-
-  @impl true
-  def handle_event("confirm_execute", _params, socket) do
-    chore = socket.assigns.selected_chore
-    params = socket.assigns.duplicate_warning
-    changeset = chore.module.changeset(params)
-    casted_args = Ecto.Changeset.apply_changes(changeset)
-
-    socket
-    |> assign(duplicate_warning: nil)
-    |> perform_execute(chore, casted_args)
-  end
-
-  @impl true
-  def handle_event("cancel_execute", _params, socket) do
-    {:noreply, assign(socket, duplicate_warning: nil)}
-  end
-
-  defp perform_execute(socket, chore, casted_args) do
-    # Check if the worker already has unique options defined
-    has_worker_unique? = chore.unique
-
-    opts =
-      if socket.assigns.unique_execution and not has_worker_unique?,
-        do: [unique: [period: :infinity, states: [:available, :scheduled, :executing]]],
-        else: []
-
-    case Oban.insert(chore.module.new(casted_args, opts)) do
-      {:ok, %{conflict?: conflict?} = job} ->
-        if pubsub = ObanChore.pubsub_server() do
-          Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
-        end
-
-        message =
-          if conflict?,
-            do: "Job already running with these arguments",
-            else: "Successfully enqueued #{chore.name}"
-
-        {:noreply,
-         socket
-         |> put_flash(:info, message)
-         |> assign(active_job_id: job.id, logs: [])}
-
-      {:error, _reason} ->
-        Logger.error("Failed to enqueue #{chore.name} with args #{inspect(casted_args)}")
-        {:noreply, put_flash(socket, :error, "Failed to enqueue #{chore.name}")}
-    end
+  def handle_event("select_tab", %{"tab" => "job_" <> id_str}, socket) do
+    id = String.to_integer(id_str)
+    {:noreply, assign(socket, selected_tab: {:job, id})}
   end
 
   @impl true
@@ -273,33 +206,47 @@ defmodule ObanChoreWeb.DashboardLive do
 
   @impl true
   def handle_info({:oban_chore_count, worker_module, count}, socket) do
-    Logger.debug("[ObanChore Dashboard] Received count update for #{worker_module}: #{count}")
     new_counts = Map.put(socket.assigns.counts, worker_module, count)
     {:noreply, assign(socket, counts: new_counts)}
   end
 
   @impl true
-  def handle_info({:oban_chore_log, job_id, message}, socket) do
-    if job_id == socket.assigns.active_job_id do
-      {:noreply, assign(socket, logs: [message | socket.assigns.logs])}
-    else
-      {:noreply, socket}
+  def handle_info({:job_enqueued, job, worker_module}, socket) do
+    if pubsub = ObanChore.pubsub_server() do
+      Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
+      Phoenix.PubSub.subscribe(pubsub, "oban_chore:status:#{job.id}")
     end
+
+    new_jobs = Map.put(socket.assigns.jobs, job.id, job)
+
+    new_chore_jobs =
+      Map.update(socket.assigns.chore_jobs, worker_module, [job.id], fn job_ids ->
+        if job.id in job_ids, do: job_ids, else: [job.id | job_ids]
+      end)
+
+    {:noreply,
+     socket
+     |> assign(jobs: new_jobs, chore_jobs: new_chore_jobs, selected_tab: {:job, job.id})}
   end
 
-  defp type_to_input_type(type) do
-    case type do
-      :utc_datetime -> "datetime-local"
-      :date -> "date"
-      :time -> "time"
-      :boolean -> "checkbox"
-      other -> to_string(other)
-    end
+  @impl true
+  def handle_info({:oban_chore_state, job_id, state}, socket) do
+    # O(1) update of the flat jobs map
+    new_jobs = Map.update!(socket.assigns.jobs, job_id, fn job -> %{job | state: state} end)
+
+    # Forward to JobComponent
+    send_update(ObanChoreWeb.JobComponent, id: job_id, new_state: state)
+
+    {:noreply, assign(socket, jobs: new_jobs)}
+  end
+
+  @impl true
+  def handle_info({:oban_chore_log, job_id, message}, socket) do
+    send_update(ObanChoreWeb.JobComponent, id: job_id, new_log: message)
+    {:noreply, socket}
   end
 
   defp fetch_counts(chores) do
-    # For now we use the default Oban name.
-    # In the future we can make this configurable via the dashboard mount options.
     Map.new(chores, fn chore -> {chore.module, ObanChore.count_running(chore.module, Oban)} end)
   end
 end
