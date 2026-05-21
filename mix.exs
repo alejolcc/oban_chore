@@ -33,7 +33,8 @@ defmodule ObanChore.MixProject do
     [
       maintainers: ["Alejo <alejo.lcc@gmail.com>"],
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/alejolcc/oban_chore"}
+      links: %{"GitHub" => "https://github.com/alejolcc/oban_chore"},
+      files: ~w(lib priv mix.exs README.md LICENSE)
     ]
   end
 
@@ -43,7 +44,7 @@ defmodule ObanChore.MixProject do
       {:oban, "~> 2.15"},
       {:phoenix_live_view, "~> 0.20 or ~> 1.0"},
       {:phoenix_html, "~> 3.3 or ~> 4.0"},
-      {:ecto, "~> 3.0"},
+      {:ecto, "~> 3.13"},
       {:ex_doc, "~> 0.31", runtime: false, only: :dev}
     ]
   end

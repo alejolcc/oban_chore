@@ -7,8 +7,8 @@ defmodule ObanChoreWeb.ChoreComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class={if @selected, do: "block", else: "hidden"}>
-      <div class="max-w-4xl mx-auto space-y-6">
+    <div class={if @selected, do: "oc-block", else: "oc-hidden"}>
+      <div class="oc-container" style="display: flex; flex-direction: column; gap: 1.5rem;">
         <%= if @duplicate_warning do %>
           <.duplicate_warning_banner
             on_confirm="confirm_execute"
@@ -17,9 +17,9 @@ defmodule ObanChoreWeb.ChoreComponent do
           />
         <% end %>
 
-        <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-          <div class="px-4 py-6 sm:p-8">
-            <.form for={@form} phx-change="validate" phx-submit="execute" phx-target={@myself} class="space-y-6">
+        <div class="oc-card">
+          <div class="oc-card-body">
+            <.form for={@form} phx-change="validate" phx-submit="execute" phx-target={@myself} style="display: flex; flex-direction: column; gap: 1.5rem;">
               <%= for {field, opts} <- @chore.fields do %>
                 <.input
                   field={@form[field]}
@@ -31,7 +31,7 @@ defmodule ObanChoreWeb.ChoreComponent do
                 />
               <% end %>
 
-              <div class="flex items-center justify-end gap-x-6 border-t border-gray-900/10 pt-6">
+              <div class="oc-flex oc-items-center oc-justify-between oc-gap-2" style="border-top: 1px solid var(--oc-gray-200); padding-top: 1.5rem; margin-top: 1.5rem;">
                 <.unique_execution_toggle
                   id={"unique-#{@id}"}
                   unique_execution={@unique_execution}
@@ -41,7 +41,7 @@ defmodule ObanChoreWeb.ChoreComponent do
                 />
                 <button
                   type="submit"
-                  class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  class="oc-btn oc-btn-primary"
                 >
                   Execute Chore
                 </button>

@@ -7,18 +7,18 @@ defmodule ObanChoreWeb.DashboardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="flex h-screen bg-gray-50 overflow-hidden">
+    <div class="oc-dashboard">
       <!-- Sidebar -->
-      <div class="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div class="p-6 border-b border-gray-200 flex items-center gap-2">
-          <div class="w-8 h-8 bg-brand rounded-lg flex items-center justify-center text-white font-bold">
+      <div class="oc-sidebar">
+        <div class="oc-sidebar-header">
+          <div class="oc-logo-icon">
             O
           </div>
-          <h1 class="text-xl font-bold text-gray-900 tracking-tight">ObanChore</h1>
+          <h1 class="oc-sidebar-title">ObanChore</h1>
         </div>
 
-        <nav class="flex-1 overflow-y-auto p-4 space-y-1">
-          <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-2">
+        <nav class="oc-sidebar-nav">
+          <div class="oc-nav-section-title">
             Available Chores
           </div>
           <%= for chore <- @chores do %>
@@ -26,10 +26,10 @@ defmodule ObanChoreWeb.DashboardLive do
               phx-click="select_chore"
               phx-value-module={to_string(chore.module)}
               class={[
-                "w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-between",
+                "oc-nav-item",
                 if(@selected_chore_module == chore.module,
-                  do: "bg-brand/10 text-brand",
-                  else: "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  do: "oc-nav-item--active",
+                  else: ""
                 )
               ]}
             >
@@ -41,66 +41,63 @@ defmodule ObanChoreWeb.DashboardLive do
       </div>
 
       <!-- Main Content -->
-      <main class="flex-1 overflow-y-auto p-8 relative">
+      <main class="oc-main">
         <.flash_group flash={@flash} />
 
         <%= if @selected_chore_module do %>
           <% chore = Enum.find(@chores, &(&1.module == @selected_chore_module)) %>
-          <div class="max-w-4xl mx-auto space-y-8">
-            <div class="border-b border-gray-200 pb-5">
-              <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+          <div class="oc-container">
+            <div class="oc-header">
+              <h2 class="oc-title">
                 <%= chore.name %>
               </h2>
-              <p class="mt-2 text-sm text-gray-500">
+              <p class="oc-subtitle">
                 <%= chore.description || "Configure and execute this chore." %>
               </p>
             </div>
 
             <!-- Tabs -->
-            <div class="border-b border-gray-200">
-              <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+            <div class="oc-tabs-nav">
+              <button
+                phx-click="select_tab"
+                phx-value-tab="new"
+                class={[
+                  "oc-tab-item",
+                  if(@selected_tab == :new, do: "oc-tab-item--active", else: "")
+                ]}
+              >
+                New Execution
+              </button>
+              <%= for job_id <- Map.get(@chore_jobs, @selected_chore_module, []), job = @jobs[job_id] do %>
                 <button
                   phx-click="select_tab"
-                  phx-value-tab="new"
+                  phx-value-tab={"job_#{job.id}"}
                   class={[
-                    "whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium",
-                    if(@selected_tab == :new,
-                      do: "border-brand text-brand",
-                      else: "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-                    )
+                    "oc-tab-item",
+                    if(@selected_tab == {:job, job.id}, do: "oc-tab-item--active", else: "")
                   ]}
                 >
-                  New Execution
+                  <span>Job #<%= job.id %></span>
+                  <span class={[
+                    "oc-status-dot",
+                    case job.state do
+                      :executing -> "oc-status-dot--pulse"
+                      _ -> ""
+                    end
+                  ]} style={
+                    case job.state do
+                      :executing -> "background-color: var(--oc-blue-500);"
+                      :available -> "background-color: var(--oc-gray-400);"
+                      :scheduled -> "background-color: var(--oc-amber-400);"
+                      _ -> "background-color: var(--oc-gray-400);"
+                    end
+                  }></span>
                 </button>
-                <%= for job_id <- Map.get(@chore_jobs, @selected_chore_module, []), job = @jobs[job_id] do %>
-                  <button
-                    phx-click="select_tab"
-                    phx-value-tab={"job_#{job.id}"}
-                    class={[
-                      "whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium flex items-center gap-2",
-                      if(@selected_tab == {:job, job.id},
-                        do: "border-brand text-brand",
-                        else: "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-                      )
-                    ]}
-                  >
-                    <span>Job #<%= job.id %></span>
-                    <span class={[
-                      "w-2 h-2 rounded-full",
-                      case job.state do
-                        :executing -> "bg-blue-500 animate-pulse"
-                        :available -> "bg-gray-400"
-                        :scheduled -> "bg-yellow-400"
-                        _ -> "bg-gray-400"
-                      end
-                    ]}></span>
-                  </button>
-                <% end %>
-              </nav>
+              <% end %>
             </div>
 
             <!-- Content Area -->
-            <div class="mt-8">
+            <div class="oc-mt-8">
               <%= for chore_item <- @chores do %>
                 <.live_component
                   module={ObanChoreWeb.ChoreComponent}
@@ -123,14 +120,14 @@ defmodule ObanChoreWeb.DashboardLive do
             </div>
           </div>
         <% else %>
-          <div class="h-full flex flex-col items-center justify-center text-center">
-            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-gray-400">
+          <div style="height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+            <div style="width: 4rem; height: 4rem; background-color: var(--oc-gray-100); border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 2rem; height: 2rem; color: var(--oc-gray-400);">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
               </svg>
             </div>
-            <h3 class="text-sm font-semibold text-gray-900">No chore selected</h3>
-            <p class="mt-1 text-sm text-gray-500">Select a chore from the sidebar to get started.</p>
+            <h3 class="oc-text-sm" style="font-weight: 600; color: var(--oc-gray-900);">No chore selected</h3>
+            <p class="oc-mt-2 oc-text-sm oc-text-gray-500">Select a chore from the sidebar to get started.</p>
           </div>
         <% end %>
       </main>
