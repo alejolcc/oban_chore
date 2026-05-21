@@ -185,6 +185,7 @@ defmodule ObanChoreWeb.CoreComponents do
   @doc """
   Renders a toggle for unique execution.
   """
+  attr(:id, :string, default: "unique_execution")
   attr(:unique_execution, :boolean, required: true)
   attr(:worker_has_unique, :boolean, required: true)
   attr(:phx_click, :any, default: "toggle_unique")
@@ -195,7 +196,7 @@ defmodule ObanChoreWeb.CoreComponents do
     <div class="relative flex items-center gap-2 group" {@rest}>
       <input
         type="checkbox"
-        id="unique_execution"
+        id={@id}
         phx-click={if not @worker_has_unique, do: @phx_click}
         phx-target={Map.get(@rest, :"phx-target")}
         checked={@unique_execution}
@@ -206,7 +207,7 @@ defmodule ObanChoreWeb.CoreComponents do
         ]}
       />
       <label
-        for="unique_execution"
+        for={@id}
         class={[
           "text-sm font-medium text-gray-700 select-none",
           if(@worker_has_unique, do: "opacity-50 cursor-not-allowed", else: "cursor-pointer")
