@@ -4,7 +4,7 @@
 
 ObanChore is an Elixir library that transforms your standard Oban workers into secure, UI-driven operational tools. It automatically generates a Phoenix LiveView dashboard allowing your team to trigger, monitor, and audit ad-hoc scripts and backfills without touching a production console.
 
-![ObanChore Dashboard Preview](assets/dashboard_preview.png)
+![ObanChore Dashboard Preview](assets/dashboard_preview.gif)
 
 ---
 
