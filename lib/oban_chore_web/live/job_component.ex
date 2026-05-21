@@ -4,46 +4,41 @@ defmodule ObanChoreWeb.JobComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class={if @selected, do: "block", else: "hidden"}>
-      <div class="space-y-6">
-        <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-          <div class="px-4 py-4 sm:px-6 border-b border-gray-100 flex justify-between items-center">
-            <h3 class="text-sm font-semibold leading-6 text-gray-900">Arguments</h3>
-            <div class="flex items-center gap-2">
-              <span class={[
-                "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset",
-                state_class(@job.state)
-              ]}>
+    <div class={if @selected, do: "oc-block", else: "oc-hidden"}>
+      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <div class="oc-card">
+          <div class="oc-job-header">
+            <h3 class="oc-text-sm" style="font-weight: 600; color: var(--oc-gray-900);">Arguments</h3>
+            <div class="oc-flex oc-items-center oc-gap-2">
+              <span class="oc-badge" style={state_style(@job.state)}>
                 <%= String.capitalize(to_string(@job.state)) %>
               </span>
-              <span class="text-xs text-gray-500 font-mono">ID: <%= @job.id %></span>
+              <span class="oc-text-xs oc-text-gray-500 oc-font-mono">ID: <%= @job.id %></span>
             </div>
           </div>
-          <div class="px-4 py-4 sm:p-6 bg-gray-50/50">
+          <div class="oc-job-args-grid">
             <%= if map_size(@job.args) > 0 do %>
-              <dl class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-                <%= for {key, value} <- @job.args do %>
-                  <div class="sm:col-span-1">
-                    <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider"><%= key %></dt>
-                    <dd class="mt-1 text-sm text-gray-900 font-mono bg-white border border-gray-200 rounded px-2 py-1 truncate" title={inspect(value)}>
-                      <%= inspect(value) %>
-                    </dd>
-                  </div>
-                <% end %>
-              </dl>
+              <%= for {key, value} <- @job.args do %>
+                <div>
+                  <dt class="oc-job-arg-title"><%= key %></dt>
+                  <dd class="oc-job-arg-value" title={inspect(value)}>
+                    <%= inspect(value) %>
+                  </dd>
+                </div>
+              <% end %>
             <% else %>
-              <p class="text-xs text-gray-500 italic">No arguments provided.</p>
+              <p class="oc-text-xs oc-text-gray-500" style="font-style: italic;">No arguments provided.</p>
             <% end %>
           </div>
         </div>
 
-        <div class="space-y-4">
-          <h3 class="text-sm font-semibold text-gray-900 px-1">Execution Logs</h3>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <h3 class="oc-text-sm" style="font-weight: 600; color: var(--oc-gray-900); padding-left: 0.25rem;">Execution Logs</h3>
 
           <div class={[
-            "bg-slate-900 rounded-lg p-4 font-mono text-xs overflow-y-auto h-[400px] border border-slate-800 shadow-inner",
-            if(@logs == [], do: "flex items-center justify-center text-slate-500 italic", else: "text-slate-300")
-          ]}>
+            "oc-log-container",
+            if(@logs == [], do: "oc-flex oc-items-center oc-justify-center oc-text-gray-500", else: "")
+          ]} style={if(@logs == [], do: "font-style: italic;", else: "")}>
             <%= if @logs == [] do %>
               <%= if @job.state == :executing do %>
                 Waiting for logs...
@@ -51,11 +46,11 @@ defmodule ObanChoreWeb.JobComponent do
                 No logs yet.
               <% end %>
             <% else %>
-              <div class="flex flex-col-reverse gap-1">
+              <div style="display: flex; flex-direction: column-reverse; gap: 0.25rem;">
                 <%= for log <- @logs do %>
-                  <div class="flex gap-2">
-                    <span class="text-slate-600 select-none">$</span>
-                    <span><%= log %></span>
+                  <div class="oc-log-line">
+                    <span class="oc-log-prompt">$</span>
+                    <span class="oc-log-content"><%= log %></span>
                   </div>
                 <% end %>
               </div>
@@ -89,14 +84,25 @@ defmodule ObanChoreWeb.JobComponent do
     end
   end
 
-  defp state_class(state) do
+  defp state_style(state) do
     case state do
-      :executing -> "bg-blue-50 text-blue-700 ring-blue-700/10"
-      :available -> "bg-gray-50 text-gray-600 ring-gray-500/10"
-      :scheduled -> "bg-yellow-50 text-yellow-800 ring-yellow-600/20"
-      :completed -> "bg-green-50 text-green-700 ring-green-600/20"
-      :discarded -> "bg-red-50 text-red-700 ring-red-600/10"
-      _ -> "bg-gray-50 text-gray-600 ring-gray-500/10"
+      :executing ->
+        "background-color: var(--oc-blue-50); color: var(--oc-blue-700); box-shadow: inset 0 0 0 1px rgba(29, 78, 216, 0.1);"
+
+      :available ->
+        "background-color: var(--oc-gray-50); color: var(--oc-gray-600); box-shadow: inset 0 0 0 1px rgba(107, 114, 128, 0.1);"
+
+      :scheduled ->
+        "background-color: var(--oc-amber-50); color: var(--oc-amber-800); box-shadow: inset 0 0 0 1px rgba(180, 83, 9, 0.2);"
+
+      :completed ->
+        "background-color: var(--oc-emerald-50); color: var(--oc-emerald-800); box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.2);"
+
+      :discarded ->
+        "background-color: var(--oc-rose-50); color: var(--oc-rose-900); box-shadow: inset 0 0 0 1px rgba(244, 63, 94, 0.1);"
+
+      _ ->
+        "background-color: var(--oc-gray-50); color: var(--oc-gray-600); box-shadow: inset 0 0 0 1px rgba(107, 114, 128, 0.1);"
     end
   end
 end
