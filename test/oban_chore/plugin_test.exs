@@ -41,7 +41,11 @@ defmodule ObanChore.PluginTest do
     assert ObanChore.Plugin.validate(otp_app: :my_app, pubsub_server: TestPubSub) == :ok
     assert ObanChore.Plugin.validate(otp_app: [:app1, :app2], pubsub_server: TestPubSub) == :ok
     assert {:error, "missing :pubsub_server option"} = ObanChore.Plugin.validate([])
-    assert {:error, _} = ObanChore.Plugin.validate(otp_app: "not_an_atom", pubsub_server: TestPubSub)
-    assert {:error, _} = ObanChore.Plugin.validate(otp_app: [:app1, "not_an_atom"], pubsub_server: TestPubSub)
+
+    assert {:error, _} =
+             ObanChore.Plugin.validate(otp_app: "not_an_atom", pubsub_server: TestPubSub)
+
+    assert {:error, _} =
+             ObanChore.Plugin.validate(otp_app: [:app1, "not_an_atom"], pubsub_server: TestPubSub)
   end
 end
