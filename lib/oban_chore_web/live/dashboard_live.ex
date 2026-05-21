@@ -4,8 +4,6 @@ defmodule ObanChoreWeb.DashboardLive do
 
   require Logger
 
-  @refresh_interval 5000
-
   @impl true
   def render(assigns) do
     ~H"""
@@ -146,11 +144,7 @@ defmodule ObanChoreWeb.DashboardLive do
     pubsub = ObanChore.pubsub_server()
 
     if connected?(socket) do
-      if pubsub do
-        Phoenix.PubSub.subscribe(pubsub, "oban_chore:counts")
-      else
-        :timer.send_interval(@refresh_interval, self(), :refresh_counts)
-      end
+      Phoenix.PubSub.subscribe(pubsub, "oban_chore:counts")
     end
 
     # Fetch initial active jobs and subscribe to them
@@ -158,7 +152,7 @@ defmodule ObanChoreWeb.DashboardLive do
       Enum.reduce(chores, {%{}, %{}}, fn chore, {jobs_acc, chore_jobs_acc} ->
         jobs = ObanChore.list_active_jobs(chore.module)
 
-        if connected?(socket) and pubsub do
+        if connected?(socket) do
           for job <- jobs do
             Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
             Phoenix.PubSub.subscribe(pubsub, "oban_chore:status:#{job.id}")
@@ -200,11 +194,6 @@ defmodule ObanChoreWeb.DashboardLive do
   end
 
   @impl true
-  def handle_info(:refresh_counts, socket) do
-    {:noreply, assign(socket, counts: fetch_counts(socket.assigns.chores))}
-  end
-
-  @impl true
   def handle_info({:oban_chore_count, worker_module, count}, socket) do
     new_counts = Map.put(socket.assigns.counts, worker_module, count)
     {:noreply, assign(socket, counts: new_counts)}
@@ -212,7 +201,9 @@ defmodule ObanChoreWeb.DashboardLive do
 
   @impl true
   def handle_info({:job_enqueued, job, worker_module}, socket) do
-    if pubsub = ObanChore.pubsub_server() do
+    pubsub = ObanChore.pubsub_server()
+
+    if connected?(socket) do
       Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
       Phoenix.PubSub.subscribe(pubsub, "oban_chore:status:#{job.id}")
     end

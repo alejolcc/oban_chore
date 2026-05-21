@@ -62,25 +62,28 @@ Add `oban_chore` to your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:oban_chore, "~> 0.2.0"}
+    {:oban_chore, "~> 0.2.3"}
   ]
 end
 ```
 
 ### 3. Configure Oban
 
-Add `ObanChore.Plugin` to your Oban configuration:
+Add `ObanChore.Plugin` to your Oban configuration. This plugin automatically discovers chores and attaches telemetry handlers for real-time updates:
 
 ```elixir
 # config/config.exs
 config :my_app, Oban,
   repo: MyApp.Repo,
   plugins: [
-    {ObanChore.Plugin, otp_app: :my_app},
+    {ObanChore.Plugin, otp_app: :my_app, pubsub_server: MyApp.PubSub},
     # ... other plugins
   ],
   queues: [default: 10]
 ```
+
+> **Note:** Providing `pubsub_server` here is the recommended way to enable real-time logs and status updates in the dashboard.
+
 
 ### 4. Define a Chore
 
@@ -132,6 +135,46 @@ end
 
 ---
 
+## ⚙️ Real-Time Monitoring & Status
+
+ObanChore provides deep visibility into your operational tasks as they happen.
+
+### Status Tracking
+
+The dashboard automatically tracks and displays the lifecycle of every job triggered from the UI. Using Oban's telemetry events, the dashboard shows real-time status indicators (dots) for:
+
+* 🔵 **Executing:** The job is currently running.
+* ⚪ **Available:** The job is in the queue waiting for a worker.
+* 🟡 **Scheduled:** The job is set to run at a future time.
+* 🟢 **Completed:** The job finished successfully.
+* 🔴 **Discarded:** The job failed and will not be retried.
+
+### Tabbed Execution View
+
+ObanChore allows you to monitor multiple executions of the same chore simultaneously. Each execution gets its own dedicated tab in the dashboard, containing its specific arguments and live console output.
+
+### Live Console Logging
+
+To stream custom logs from your workers to the dashboard, ensure you've configured the `pubsub_server` in the plugin options as shown above.
+
+Then, use `ObanChore.log/2` inside your worker's `perform/1` function:
+
+```elixir
+defmodule MyApp.Chores.UserBackfill do
+  use ObanChore.Worker, name: "User Backfill"
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{} = job) do
+    ObanChore.log(job, "Starting backfill...")
+    # ... logic ...
+    ObanChore.log(job, "Done!")
+    :ok
+  end
+end
+```
+
+---
+
 ## 🛠️ Field Configuration
 
 ### Supported Types
@@ -164,86 +207,18 @@ Each field can be customized with the following options:
 | `:options` | Required for `:select`. A list of strings or `{"Label", "Value"}` tuples. |
 | `:prompt` | Optional for `:select`. The placeholder text for the dropdown. |
 
-### ⚠️ A Note on Dates and Times
-
-ObanChore fully supports `:date`, `:time`, and `:utc_datetime` fields. Using these types provides a great UI experience, rendering native HTML5 date/time pickers in the dashboard and utilizing Ecto to validate the input.
-
-**However, be aware of Oban's JSON serialization.** Because Oban stores all job arguments in a PostgreSQL `jsonb` column, your worker's `perform/1` function will receive these values as **ISO8601 Strings**, not native Elixir structs. 
-
-If you need to manipulate the date inside your worker, you must parse the string first:
-
-```elixir
-defmodule MyApp.Chores.ScheduleReport do
-  use ObanChore.Worker, fields: [run_date: [type: :date]]
-
-  @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"run_date" => date_string}}) do
-    # date_string will be "2026-05-15"
-    parsed_date = Date.from_iso8601!(date_string)
-
-    # ... your business logic ...
-    :ok
-  end
-end
-```
-
 ---
-
-## ⚙️ Advanced Configuration
-
-Since `ObanChore.Worker` is a wrapper around `Oban.Worker`, you can use all standard Oban options:
-
-```elixir
-defmodule MyApp.Chores.CriticalBackfill do
-  use ObanChore.Worker,
-    name: "Critical Data Backfill",
-    queue: :operational,        # Run in a specific queue
-    max_attempts: 5,            # Set custom retry limit
-    priority: 1,                # Set job priority
-    fields: [
-      user_id: [type: :integer, required: true]
-    ]
-
-  @impl Oban.Worker
-  def perform(%Oban.Job{args: args}) do
-    # ...
-  end
-end
-```
-
-### Real-Time Logging (Optional)
-
-To enable real-time updates from your workers, first configure your PubSub server:
-
-```elixir
-# config/config.exs
-config :oban_chore, pubsub_server: MyApp.PubSub
-```
-
-Then, use `ObanChore.log/2` inside your worker's `perform/1` function to stream updates:
-
-```elixir
-defmodule MyApp.Chores.UserBackfill do
-  use ObanChore.Worker, name: "User Backfill"
-
-  @impl Oban.Worker
-  def perform(%Oban.Job{} = job) do
-    ObanChore.log(job, "Starting backfill...")
-    # ... logic ...
-    ObanChore.log(job, "Processed 50%...")
-    # ... logic ...
-    ObanChore.log(job, "Done!")
-    :ok
-  end
-end
-```
 
 ## ✨ Core Features
 
 * 🛠️ **Zero-Boilerplate Internal Tooling:** Stop building custom HTML forms and controllers for one-off admin tasks. Define your argument schema once in the backend, and let ObanChore generate the UI.
-* 📡 **Live Execution Streaming:** Leveraging Phoenix PubSub, ObanChore streams logs and progress updates from the isolated background process directly back to the user's browser in real-time.
-* 🔐 **Operational Safety by Default:** Move away from direct database manipulation. Chores run within the strict, idempotent boundaries of your Oban workers. 
-* 🚦 **Concurrency Control:** Prevent race conditions by ensuring specific operational tasks cannot be triggered concurrently by multiple users.
+* 📡 **Live Execution Streaming:** Leveraging Phoenix PubSub and Telemetry, ObanChore streams logs and status updates from the background process directly back to the user's browser in real-time.
+* 📑 **Multi-Job Tracking:** Monitor multiple concurrent or past executions for each chore through a clean tabbed interface.
+* 🔐 **Operational Safety:** 
+    * **Idempotency Check:** Automatically detects if a job with the same arguments is already running.
+    * **Unique Execution Toggle:** Manually enforce single-job execution via the dashboard UI.
+    * **Validation:** Full Ecto-backed validation for all chore arguments.
+* 🚦 **Concurrency Control:** Piggyback on Oban's powerful concurrency and unique job features to control your operational load.
 
 ## 🏗️ Architectural Philosophy
 

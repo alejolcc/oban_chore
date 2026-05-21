@@ -14,6 +14,13 @@ defmodule ObanChore.Plugin do
 
   @impl Oban.Plugin
   def validate(opts) do
+    with :ok <- validate_otp_app(opts),
+         :ok <- validate_pubsub_server(opts) do
+      :ok
+    end
+  end
+
+  defp validate_otp_app(opts) do
     case Keyword.get(opts, :otp_app) do
       nil ->
         :ok
@@ -28,6 +35,14 @@ defmodule ObanChore.Plugin do
 
       _ ->
         {:error, "otp_app must be an atom or a list of atoms"}
+    end
+  end
+
+  defp validate_pubsub_server(opts) do
+    case Keyword.get(opts, :pubsub_server) do
+      nil -> {:error, "missing :pubsub_server option"}
+      server when is_atom(server) -> :ok
+      _ -> {:error, "pubsub_server must be an atom"}
     end
   end
 
@@ -68,6 +83,10 @@ defmodule ObanChore.Plugin do
 
   @impl GenServer
   def init(opts) do
+    # Guaranteed to exist by validate/1
+    pubsub = Keyword.fetch!(opts, :pubsub_server)
+    Application.put_env(:oban_chore, :pubsub_server, pubsub)
+
     {:ok, %{opts: opts, chores: []}, {:continue, :discover_chores}}
   end
 
@@ -79,22 +98,21 @@ defmodule ObanChore.Plugin do
 
   @impl GenServer
   def handle_continue(:attach_telemetry, state) do
-    if pubsub_server = ObanChore.pubsub_server() do
-      oban_name = if state.opts[:conf], do: state.opts[:conf].name, else: Oban
-      handler_id = {:oban_chore_counts, oban_name}
+    pubsub_server = Application.fetch_env!(:oban_chore, :pubsub_server)
+    oban_name = if state.opts[:conf], do: state.opts[:conf].name, else: Oban
+    handler_id = {:oban_chore_counts, oban_name}
 
-      :telemetry.attach_many(
-        handler_id,
-        [
-          [:oban, :job, :insert, :stop],
-          [:oban, :job, :start],
-          [:oban, :job, :stop],
-          [:oban, :job, :exception]
-        ],
-        &__MODULE__.handle_telemetry/4,
-        %{oban_name: oban_name, pubsub_server: pubsub_server, chores: state.chores}
-      )
-    end
+    :telemetry.attach_many(
+      handler_id,
+      [
+        [:oban, :job, :insert, :stop],
+        [:oban, :job, :start],
+        [:oban, :job, :stop],
+        [:oban, :job, :exception]
+      ],
+      &__MODULE__.handle_telemetry/4,
+      %{oban_name: oban_name, pubsub_server: pubsub_server, chores: state.chores}
+    )
 
     {:noreply, state}
   end
