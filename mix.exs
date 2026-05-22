@@ -48,7 +48,7 @@ defmodule ObanChore.MixProject do
       {:oban, "~> 2.15"},
       {:phoenix_live_view, "~> 0.20 or ~> 1.0"},
       {:phoenix_html, "~> 3.3 or ~> 4.0"},
-      {:ecto, "~> 3.13"},
+      {:ecto, "~> 3.10"},
       {:ex_doc, "~> 0.31", runtime: false, only: :dev}
     ]
   end
