@@ -1,6 +1,20 @@
 defmodule ObanChore.Router do
   @moduledoc """
-  Provides a macro to mount the ObanChore dashboard in your router.
+  Provides a macro to mount the ObanChore dashboard in your application's router.
+
+  ## Example
+
+  ```elixir
+  defmodule MyAppWeb.Router do
+    use MyAppWeb, :router
+    import ObanChore.Router
+
+    scope "/" do
+      pipe_through :browser
+      oban_chore_dashboard "/ops/chores"
+    end
+  end
+  ```
   """
 
   defmacro oban_chore_dashboard(path, _opts \\ []) do

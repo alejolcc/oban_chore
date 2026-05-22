@@ -1,4 +1,5 @@
 defmodule ObanChoreWeb.ChoreComponent do
+  @moduledoc false
   use Phoenix.LiveComponent
   import ObanChoreWeb.CoreComponents
 

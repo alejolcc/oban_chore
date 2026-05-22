@@ -1,4 +1,5 @@
 defmodule ObanChoreWeb.DashboardLive do
+  @moduledoc false
   use Phoenix.LiveView
   import ObanChoreWeb.CoreComponents
 

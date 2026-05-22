@@ -1,24 +1,59 @@
 defmodule ObanChore.Worker do
   @moduledoc """
-  A macro that wraps `Oban.Worker` to provide metadata for UI generation.
+  A macro that wraps `Oban.Worker` to provide the DSL for defining chore inputs.
+
+  When you `use ObanChore.Worker`, it automatically includes `Oban.Worker` and sets up
+  the metadata required for the dashboard to render forms and track execution.
+
+  ## Options
+
+    * `:name` - (Optional) A human-readable name for the chore. Defaults to the module name.
+    * `:description` - (Optional) A brief description of what the chore does.
+    * `:fields` - (Required) A keyword list defining the input fields for the chore.
+    * ... (All other options are passed directly to `Oban.Worker`)
+
+  ## Field Options
+
+    * `:type` - (Required) The data type of the field. Supported types:
+      - Ecto types: `:integer`, `:float`, `:boolean`, `:string`, `:date`, `:time`, `:utc_datetime`.
+      - UI-specific types: `:textarea`, `:select` (uses `:string` in changeset), `:checkbox` (uses `:boolean`).
+    * `:label` - (Optional) The label to display in the UI.
+    * `:default` - (Optional) Default value for the field.
+    * `:required` - (Optional) Whether the field is required.
+    * `:options` - (Required for `:select`) A list of options for the select input.
 
   ## Example
 
-      defmodule MyApp.Chores.UserBackfill do
-        use ObanChore.Worker,
-          name: "User Data Backfill",
-          fields: [
-            user_id: [type: :integer, required: true],
-            reason: [type: :string, default: "Manual Update"]
-          ]
+  ```elixir
+  defmodule MyApp.Chores.UserBackfill do
+    use ObanChore.Worker,
+      name: "User Data Backfill",
+      description: "Backfills historical data for a specific user.",
+      fields: [
+        user_id: [type: :integer, required: true, label: "Target User ID"],
+        reason: [type: :string, default: "Manual correction", label: "Reason for backfill"]
+      ],
+      queue: :default,
+      unique: [period: :infinity]
 
-        @impl Oban.Worker
-        def perform(%Oban.Job{args: args}) do
-          # ...
-        end
-      end
+    @impl Oban.Worker
+    def perform(%Oban.Job{args: args}) do
+      # Your execution logic here
+      :ok
+    end
+
+    # You can optionally override custom_changeset/1 for advanced validation
+    @impl true
+    def custom_changeset(changeset) do
+      validate_number(changeset, :user_id, greater_than: 0)
+    end
+  end
+  ```
   """
 
+  @doc """
+  A callback to add custom validations to the chore's arguments changeset.
+  """
   @callback custom_changeset(Ecto.Changeset.t()) :: Ecto.Changeset.t()
 
   defp accepted_types do

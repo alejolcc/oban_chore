@@ -1,4 +1,5 @@
 defmodule ObanChoreWeb.JobComponent do
+  @moduledoc false
   use Phoenix.LiveComponent
 
   @impl true

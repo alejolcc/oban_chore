@@ -1,7 +1,6 @@
 defmodule ObanChoreWeb.CoreComponents do
-  @moduledoc """
-  Provides UI components for the ObanChore dashboard.
-  """
+  @moduledoc false
+
   use Phoenix.Component
 
   @doc """

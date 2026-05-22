@@ -1,11 +1,28 @@
 defmodule ObanChore.Plugin do
   @moduledoc """
-  An Oban Plugin that discovers and manages chores.
+  An Oban Plugin that automatically discovers and manages chores.
+
+  The plugin is responsible for:
+  - Scanning specified OTP applications for modules using `ObanChore.Worker`.
+  - Attaching telemetry handlers to track chore status and counts.
+  - Broadcasting real-time updates via Phoenix PubSub.
 
   ## Options
 
     * `:otp_app` - An atom or list of atoms representing the OTP application(s) to search for chores.
-      If not provided, all loaded applications will be searched (less efficient).
+      If not provided, all loaded applications will be searched.
+    * `:pubsub_server` - (Required) The name of your application's Phoenix PubSub server.
+
+  ## Examples
+
+  ```elixir
+  # In your Oban configuration:
+  config :my_app, Oban,
+    repo: MyApp.Repo,
+    plugins: [
+      {ObanChore.Plugin, otp_app: :my_app, pubsub_server: MyApp.PubSub}
+    ]
+  ```
   """
   @behaviour Oban.Plugin
 
@@ -52,7 +69,9 @@ defmodule ObanChore.Plugin do
   end
 
   @doc """
-  Retrieves the list of discovered chores.
+  Retrieves the list of discovered chores from the plugin's state.
+
+  Returns a list of maps containing chore metadata.
   """
   def get_chores do
     # During testing or if not started within Oban, handle missing process
