@@ -145,6 +145,7 @@ defmodule ObanChoreWeb.DashboardLive do
     end
 
     # Fetch initial active jobs and subscribe to them
+    # TODO: Avoid N+1 by fetching all active jobs in a single query and grouping them by chore.module
     {jobs, chore_jobs} =
       Enum.reduce(chores, {%{}, %{}}, fn chore, {jobs_acc, chore_jobs_acc} ->
         jobs = ObanChore.list_active_jobs(chore.module)

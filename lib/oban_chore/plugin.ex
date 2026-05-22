@@ -181,6 +181,7 @@ defmodule ObanChore.Plugin do
   # Because Oban Job state have a finite set of values, we can safely convert them to atoms
   defp event_to_state(_event, job), do: String.to_existing_atom(job.state)
 
+  # TODO: Improve the discovery
   defp discover_chores(opts) do
     apps =
       case Keyword.get(opts, :otp_app) do
