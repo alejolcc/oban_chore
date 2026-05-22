@@ -10,7 +10,10 @@ defmodule ObanChore.Worker do
     * `:name` - (Optional) A human-readable name for the chore. Defaults to the module name.
     * `:description` - (Optional) A brief description of what the chore does.
     * `:fields` - (Required) A keyword list defining the input fields for the chore.
-    * ... (All other options are passed directly to `Oban.Worker`)
+
+  Since `ObanChore.Worker` is a wrapper around `Oban.Worker`, you can also pass any standard
+  Oban option (like `:queue`, `:unique`, `:max_attempts`, etc.). These options are passed
+  directly to the underlying `Oban.Worker`.
 
   ## Field Options
 
