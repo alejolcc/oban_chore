@@ -160,6 +160,10 @@ defmodule MyApp.Chores.UserBackfill do
 end
 ```
 
+> [!NOTE]
+> Currently, to maintain simplicity, the logs are ephemeral. However, storing them in an ETS table to survive Phoenix LiveView tab restarts it could be considered for future iterations.
+
+
 ---
 
 ## 🛠️ Field Configuration

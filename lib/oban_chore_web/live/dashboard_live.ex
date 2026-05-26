@@ -1,6 +1,6 @@
 defmodule ObanChoreWeb.DashboardLive do
   @moduledoc false
-  use Phoenix.LiveView
+  use Phoenix.LiveView, layout: {ObanChoreWeb.Layouts, :dashboard}
   import ObanChoreWeb.CoreComponents
 
   require Logger
