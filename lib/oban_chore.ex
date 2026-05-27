@@ -1,4 +1,6 @@
 defmodule ObanChore do
+  import Ecto.Query
+
   @moduledoc """
   ObanChore transforms standard Oban workers into secure, UI-driven operational tools.
 
@@ -85,8 +87,9 @@ defmodule ObanChore do
     config = Oban.config(oban_name)
     repo = config.repo
 
-    [state: ~w(available scheduled executing), worker: worker_module]
-    |> Oban.Job.query()
+    Oban.Job
+    |> where([j], j.state in ~w(available scheduled executing))
+    |> where([j], j.worker == ^normalize_worker(worker_module))
     |> repo.aggregate(:count, :id)
   end
 
@@ -99,8 +102,12 @@ defmodule ObanChore do
     config = Oban.config(oban_name)
     repo = config.repo
 
-    [state: ~w(available scheduled executing), worker: worker_module, args: args]
-    |> Oban.Job.query()
+    string_args = Map.new(args, fn {k, v} -> {to_string(k), v} end)
+
+    Oban.Job
+    |> where([j], j.state in ~w(available scheduled executing))
+    |> where([j], j.worker == ^normalize_worker(worker_module))
+    |> where([j], fragment("? @> ?", j.args, ^string_args))
     |> repo.exists?()
   end
 
@@ -113,8 +120,9 @@ defmodule ObanChore do
     config = Oban.config(oban_name)
     repo = config.repo
 
-    [state: ~w(available scheduled executing), worker: worker_module]
-    |> Oban.Job.query()
+    Oban.Job
+    |> where([j], j.state in ~w(available scheduled executing))
+    |> where([j], j.worker == ^normalize_worker(worker_module))
     |> repo.all()
     |> Enum.map(fn job -> %{job | state: String.to_existing_atom(job.state)} end)
   end
@@ -122,5 +130,11 @@ defmodule ObanChore do
   @doc false
   def pubsub_server do
     Application.fetch_env!(:oban_chore, :pubsub_server)
+  end
+
+  defp normalize_worker(worker_module) do
+    worker_module
+    |> to_string()
+    |> String.trim_leading("Elixir.")
   end
 end
