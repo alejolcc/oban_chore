@@ -40,17 +40,14 @@ defmodule ObanChore.Plugin do
   end
 
   defp validate_exclusive_and_required_opts(opts) do
-    has_otp_app = Keyword.has_key?(opts, :otp_app)
-    has_chores = Keyword.has_key?(opts, :chores)
-
-    cond do
-      has_otp_app and has_chores ->
+    case {opts[:otp_app], opts[:chores]} do
+      {otp, chores} when not is_nil(otp) and not is_nil(chores) ->
         {:error, "cannot set both :otp_app and :chores options"}
 
-      not has_otp_app and not has_chores ->
+      {nil, nil} ->
         {:error, "must set either :otp_app or :chores option"}
 
-      true ->
+      _ ->
         :ok
     end
   end
