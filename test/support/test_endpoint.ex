@@ -7,10 +7,9 @@ defmodule ObanChore.TestEndpoint do
     signing_salt: "super_secret_salt_for_testing_purposes_only"
   ]
 
-  socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: @session_options]]
+  socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 
-  plug Plug.Session, @session_options
+  plug(Plug.Session, @session_options)
 
-  plug ObanChore.TestRouter
+  plug(ObanChore.TestRouter)
 end

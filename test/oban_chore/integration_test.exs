@@ -28,13 +28,13 @@ defmodule ObanChore.IntegrationTest do
 
     start_supervised!({
       Oban,
+      # Use manual testing mode so jobs stay in the database and can be queried
       name: oban_name,
       repo: TestRepo,
       queues: [default: 5],
       notifier: Oban.Notifiers.Isolated,
       peer: Oban.Peers.Isolated,
       plugins: [],
-      # Use manual testing mode so jobs stay in the database and can be queried
       testing: :manual
     })
 

@@ -14,7 +14,11 @@ Ecto.Migrator.up(ObanChore.TestRepo, 1, Oban.Migration)
 Ecto.Adapters.SQL.Sandbox.mode(ObanChore.TestRepo, :manual)
 
 # Start the dedicated PubSub and Endpoint
-{:ok, _} = Supervisor.start_link([
-  {Phoenix.PubSub, name: ObanChore.EndpointPubSub},
-  ObanChore.TestEndpoint
-], strategy: :one_for_one)
+{:ok, _} =
+  Supervisor.start_link(
+    [
+      {Phoenix.PubSub, name: ObanChore.EndpointPubSub},
+      ObanChore.TestEndpoint
+    ],
+    strategy: :one_for_one
+  )
