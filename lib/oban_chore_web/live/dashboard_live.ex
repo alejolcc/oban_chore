@@ -26,6 +26,8 @@ defmodule ObanChoreWeb.DashboardLive do
             <button
               phx-click="select_chore"
               phx-value-module={to_string(chore.module)}
+              data-role="chore-select"
+              data-chore-module={to_string(chore.module)}
               class={[
                 "oc-nav-item",
                 if(@selected_chore_module == chore.module,
@@ -49,7 +51,7 @@ defmodule ObanChoreWeb.DashboardLive do
           <% chore = Enum.find(@chores, &(&1.module == @selected_chore_module)) %>
           <div class="oc-container">
             <div class="oc-header">
-              <h2 class="oc-title">
+              <h2 class="oc-title" data-role="chore-title">
                 <%= chore.name %>
               </h2>
               <p class="oc-subtitle">
@@ -73,6 +75,8 @@ defmodule ObanChoreWeb.DashboardLive do
                 <button
                   phx-click="select_tab"
                   phx-value-tab={"job_#{job.id}"}
+                  data-role="job-tab"
+                  data-job-id={job.id}
                   class={[
                     "oc-tab-item",
                     if(@selected_tab == {:job, job.id}, do: "oc-tab-item--active", else: "")

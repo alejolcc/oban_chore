@@ -5,7 +5,7 @@ defmodule ObanChoreWeb.JobComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class={if @selected, do: "oc-block", else: "oc-hidden"}>
+    <div class={if @selected, do: "oc-block", else: "oc-hidden"} data-role="job-details" data-job-id={@job.id}>
       <div style="display: flex; flex-direction: column; gap: 1.5rem;">
         <div class="oc-card">
           <div class="oc-job-header">

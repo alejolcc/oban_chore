@@ -60,18 +60,33 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     assert html =~ "Dashboard Test Chore"
 
     # Click the chore in the sidebar
-    html = view |> element("button", "Dashboard Test Chore") |> render_click()
+    chore_module = to_string(DashboardTestChore)
+
+    html =
+      view
+      |> element("button[data-role=chore-select][data-chore-module=\"#{chore_module}\"]")
+      |> render_click()
+
     assert html =~ "A test chore for the dashboard live view"
     assert html =~ "username"
 
+    # Assert header title
+    assert has_element?(element(view, ~s(h2[data-role="chore-title"])))
+
     # Fill and submit form
-    view |> form("form", args: %{username: "john_doe", admin: "true"}) |> render_submit()
-    html = render(view)
-    assert html =~ "Job #"
+    view
+    |> form("form[data-role=execute-form]", args: %{username: "john_doe", admin: "true"})
+    |> render_submit()
 
     # Assert that the job was actually inserted in the database
     assert [job] = ObanChore.TestRepo.all(Oban.Job)
     assert job.worker == "ObanChoreWeb.DashboardLiveTest.DashboardTestChore"
     assert job.args == %{"username" => "john_doe", "admin" => true}
+
+    # Assert tab presence
+    assert has_element?(element(view, ~s(button[data-role="job-tab"][data-job-id="#{job.id}"])))
+
+    # Assert job details
+    assert has_element?(element(view, ~s(div[data-role="job-details"][data-job-id="#{job.id}"])))
   end
 end
