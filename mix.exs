@@ -8,6 +8,7 @@ defmodule ObanChore.MixProject do
       app: :oban_chore,
       version: @version,
       elixir: "~> 1.15",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       description: description(),
       package: package(),
@@ -21,6 +22,10 @@ defmodule ObanChore.MixProject do
       aliases: aliases()
     ]
   end
+
+  # Specifies which paths to compile per environment.
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help compile.app" to learn about applications.
   def application do
@@ -48,8 +53,13 @@ defmodule ObanChore.MixProject do
       {:oban, "~> 2.15"},
       {:phoenix_live_view, "~> 0.20 or ~> 1.0"},
       {:phoenix_html, "~> 3.3 or ~> 4.0"},
+      {:phoenix_ecto, "~> 4.5"},
+      {:jason, "~> 1.2", only: :test},
       {:ecto, "~> 3.10"},
-      {:ex_doc, "~> 0.31", runtime: false, only: :dev}
+      {:ecto_sql, "~> 3.10"},
+      {:postgrex, ">= 0.0.0", only: :test},
+      {:ex_doc, "~> 0.31", runtime: false, only: :dev},
+      {:lazy_html, ">= 0.1.0", only: :test}
     ]
   end
 

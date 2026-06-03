@@ -15,12 +15,13 @@ defmodule ObanChoreWeb.ChoreComponent do
             on_confirm="confirm_execute"
             on_cancel="cancel_execute"
             phx-target={@myself}
+            data-role="duplicate-warning-banner"
           />
         <% end %>
 
         <div class="oc-card">
           <div class="oc-card-body">
-            <.form for={@form} phx-change="validate" phx-submit="execute" phx-target={@myself} style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <.form for={@form} phx-change="validate" phx-submit="execute" phx-target={@myself} data-role="execute-form" style="display: flex; flex-direction: column; gap: 1.5rem;">
               <%= for {field, opts} <- @chore.fields do %>
                 <.input
                   field={@form[field]}
