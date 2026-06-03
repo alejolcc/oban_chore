@@ -15,6 +15,7 @@ defmodule ObanChoreWeb.ChoreComponent do
             on_confirm="confirm_execute"
             on_cancel="cancel_execute"
             phx-target={@myself}
+            data-role="duplicate-warning-banner"
           />
         <% end %>
 

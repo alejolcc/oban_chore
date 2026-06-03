@@ -73,6 +73,9 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     # Assert header title
     assert has_element?(element(view, ~s(h2[data-role="chore-title"])))
 
+    # Assert duplicate warning banner is not shown for the initial execution
+    refute has_element?(element(view, "[data-role=duplicate-warning-banner]"))
+
     # Fill and submit form
     view
     |> form("form[data-role=execute-form]", args: %{username: "john_doe", admin: "true"})
@@ -88,5 +91,89 @@ defmodule ObanChoreWeb.DashboardLiveTest do
 
     # Assert job details
     assert has_element?(element(view, ~s(div[data-role="job-details"][data-job-id="#{job.id}"])))
+  end
+
+  test "enforces and toggles job uniqueness" do
+    conn = build_conn()
+    {:ok, view, _html} = live(conn, "/ops/chores")
+
+    # Select the chore
+    chore_module = to_string(DashboardTestChore)
+
+    view
+    |> element("button[data-role=chore-select][data-chore-module=\"#{chore_module}\"]")
+    |> render_click()
+
+    # Fill and submit first execution
+    view
+    |> form("form[data-role=execute-form]", args: %{username: "john_doe", admin: "true"})
+    |> render_submit()
+
+    render(view)
+
+    # 1. Assert that the first job is inserted
+    assert [job1] = ObanChore.TestRepo.all(Oban.Job)
+    assert job1.worker == "ObanChoreWeb.DashboardLiveTest.DashboardTestChore"
+    assert job1.args == %{"username" => "john_doe", "admin" => true}
+
+    # Verify duplicate warning banner is not shown for initial execution
+    refute has_element?(element(view, "[data-role=duplicate-warning-banner]"))
+
+    # 2. Select New Execution tab to run a duplicate job (unique execution active by default)
+    view |> element("button[phx-value-tab=new]") |> render_click()
+
+    # Submit the form with the same arguments
+    view
+    |> form("form[data-role=execute-form]", args: %{username: "john_doe", admin: "true"})
+    |> render_submit()
+
+    # Assert duplicate warning banner is shown and job is NOT inserted yet
+    assert has_element?(element(view, "[data-role=duplicate-warning-banner]"))
+    assert [job_before_confirm] = ObanChore.TestRepo.all(Oban.Job)
+    assert job_before_confirm.id == job1.id
+
+    # Confirm the duplicate execution
+    view
+    |> element("[data-role=duplicate-warning-banner] button.oc-btn-warning")
+    |> render_click()
+
+    # Assert duplicate warning banner is gone after confirmation
+    refute has_element?(element(view, "[data-role=duplicate-warning-banner]"))
+
+    # Because unique execution was active, even after confirmation, no new job is inserted (Oban unique conflict handles it)
+    assert [job_after_unique] = ObanChore.TestRepo.all(Oban.Job)
+    assert job_after_unique.id == job1.id
+    assert ObanChore.TestRepo.aggregate(Oban.Job, :count) == 1
+
+    # 3. Select New Execution tab again to disable unique execution and trigger another duplicate
+    view |> element("button[phx-value-tab=new]") |> render_click()
+
+    # Uncheck the "Unique per args" checkbox
+    view
+    |> element("input[id=\"unique-Elixir.ObanChoreWeb.DashboardLiveTest.DashboardTestChore\"]")
+    |> render_click()
+
+    # Submit the duplicate arguments again
+    view
+    |> form("form[data-role=execute-form]", args: %{username: "john_doe", admin: "true"})
+    |> render_submit()
+
+    # Assert duplicate warning banner is shown again and job is NOT inserted yet
+    assert has_element?(element(view, "[data-role=duplicate-warning-banner]"))
+    assert render(view) =~ "Duplicate Execution Warning"
+    assert ObanChore.TestRepo.aggregate(Oban.Job, :count) == 1
+
+    # Confirm the duplicate execution
+    view
+    |> element("[data-role=duplicate-warning-banner] button.oc-btn-warning")
+    |> render_click()
+
+    # Assert duplicate warning banner is gone after confirmation
+    refute has_element?(element(view, "[data-role=duplicate-warning-banner]"))
+
+    # Because unique execution was disabled, after confirmation a new duplicate job is successfully inserted!
+    assert jobs = ObanChore.TestRepo.all(Oban.Job)
+    assert length(jobs) == 2
+    assert Enum.all?(jobs, fn job -> job.args == %{"username" => "john_doe", "admin" => true} end)
   end
 end
