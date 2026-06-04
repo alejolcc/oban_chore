@@ -205,67 +205,75 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     assert ObanChore.TestRepo.aggregate(Oban.Job, :count) == 1
   end
 
-  test "schedules a chore using relative delay presets and custom input" do
-    conn = build_conn()
-    {:ok, view, _html} = live(conn, "/ops/chores")
+  describe "relative scheduling" do
+    test "schedules a chore using presets" do
+      conn = build_conn()
+      {:ok, view, _html} = live(conn, "/ops/chores")
 
-    # Select the chore
-    chore_module = to_string(DashboardTestChore)
+      # Select the chore
+      chore_module = to_string(DashboardTestChore)
 
-    view
-    |> element("button[data-role=chore-select][data-chore-module=\"#{chore_module}\"]")
-    |> render_click()
+      view
+      |> element("button[data-role=chore-select][data-chore-module=\"#{chore_module}\"]")
+      |> render_click()
 
-    # 1. Schedule with a preset: 5 minutes
-    view
-    |> form("[id=\"form-#{chore_module}\"]", %{
-      "args" => %{username: "john_preset", admin: "false"},
-      "schedule_type" => "5_min"
-    })
-    |> render_submit()
+      # Schedule with a preset: 5 minutes
+      view
+      |> form("[id=\"form-#{chore_module}\"]", %{
+        "args" => %{username: "john_preset", admin: "false"},
+        "schedule_type" => "5_min"
+      })
+      |> render_submit()
 
-    # Verify job is scheduled in the database
-    assert [job_preset] = ObanChore.TestRepo.all(Oban.Job)
-    assert job_preset.state == "scheduled"
-    assert job_preset.args == %{"username" => "john_preset", "admin" => false}
-    # Check that scheduled_at is roughly 5 minutes from now
-    diff = DateTime.diff(job_preset.scheduled_at, DateTime.utc_now())
-    # within 10 seconds
-    assert_in_delta diff, 300, 10
+      # Verify job is scheduled in the database
+      assert [job_preset] = ObanChore.TestRepo.all(Oban.Job)
+      assert job_preset.state == "scheduled"
+      assert job_preset.args == %{"username" => "john_preset", "admin" => false}
+      # Check that scheduled_at is roughly 5 minutes from now
+      diff = DateTime.diff(job_preset.scheduled_at, DateTime.utc_now())
+      # within 10 seconds
+      assert_in_delta diff, 300, 10
+    end
 
-    # Clear DB for next part of test
-    ObanChore.TestRepo.delete_all(Oban.Job)
+    test "schedules a chore using custom input" do
+      conn = build_conn()
+      {:ok, view, _html} = live(conn, "/ops/chores")
 
-    # 2. Go back to New Execution tab
-    view |> element("button[phx-value-tab=new]") |> render_click()
+      # Select the chore
+      chore_module = to_string(DashboardTestChore)
 
-    # 3. Change schedule_type to custom
-    html =
+      view
+      |> element("button[data-role=chore-select][data-chore-module=\"#{chore_module}\"]")
+      |> render_click()
+
+      # Change schedule_type to custom
+      html =
+        view
+        |> form("[id=\"form-#{chore_module}\"]", %{
+          "args" => %{username: "john_custom", admin: "false"},
+          "schedule_type" => "custom"
+        })
+        |> render_change()
+
+      assert html =~ "custom_delay_minutes"
+
+      # Schedule with custom delay (90 minutes)
       view
       |> form("[id=\"form-#{chore_module}\"]", %{
         "args" => %{username: "john_custom", admin: "false"},
-        "schedule_type" => "custom"
+        "schedule_type" => "custom",
+        "custom_delay_minutes" => "90"
       })
-      |> render_change()
+      |> render_submit()
 
-    assert html =~ "custom_delay_minutes"
+      # Verify custom job is scheduled correctly
+      assert [job_custom] = ObanChore.TestRepo.all(Oban.Job)
+      assert job_custom.state == "scheduled"
+      assert job_custom.args == %{"username" => "john_custom", "admin" => false}
 
-    # 4. Schedule with custom delay (90 minutes)
-    view
-    |> form("[id=\"form-#{chore_module}\"]", %{
-      "args" => %{username: "john_custom", admin: "false"},
-      "schedule_type" => "custom",
-      "custom_delay_minutes" => "90"
-    })
-    |> render_submit()
-
-    # Verify custom job is scheduled correctly
-    assert [job_custom] = ObanChore.TestRepo.all(Oban.Job)
-    assert job_custom.state == "scheduled"
-    assert job_custom.args == %{"username" => "john_custom", "admin" => false}
-
-    diff_custom = DateTime.diff(job_custom.scheduled_at, DateTime.utc_now())
-    # within 10 seconds
-    assert_in_delta diff_custom, 5400, 10
+      diff_custom = DateTime.diff(job_custom.scheduled_at, DateTime.utc_now())
+      # within 10 seconds
+      assert_in_delta diff_custom, 5400, 10
+    end
   end
 end
