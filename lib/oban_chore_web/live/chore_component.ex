@@ -12,8 +12,8 @@ defmodule ObanChoreWeb.ChoreComponent do
       <div class="oc-container" style="display: flex; flex-direction: column; gap: 1.5rem;">
         <%= if @duplicate_warning do %>
           <.duplicate_warning_banner
-            on_confirm="confirm_execute"
-            on_cancel="cancel_execute"
+            on_dismiss="cancel_execute"
+            message="A job with these exact arguments is already running or scheduled. Please uncheck 'Unique per args' to run it anyway."
             phx-target={@myself}
             data-role="duplicate-warning-banner"
           />
@@ -83,7 +83,10 @@ defmodule ObanChoreWeb.ChoreComponent do
 
   @impl true
   def handle_event("toggle_unique", _params, socket) do
-    {:noreply, assign(socket, unique_execution: not socket.assigns.unique_execution)}
+    {:noreply,
+     socket
+     |> assign(unique_execution: not socket.assigns.unique_execution)
+     |> assign(duplicate_warning: nil)}
   end
 
   @impl true
@@ -102,8 +105,10 @@ defmodule ObanChoreWeb.ChoreComponent do
 
     if changeset.valid? do
       casted_args = Ecto.Changeset.apply_changes(changeset)
+      has_worker_unique? = socket.assigns.chore.unique
 
-      if ObanChore.running_with_args?(chore.module, casted_args) do
+      if not has_worker_unique? and socket.assigns.unique_execution and
+           ObanChore.running_with_args?(chore.module, casted_args) do
         {:noreply, assign(socket, duplicate_warning: params)}
       else
         perform_execute(socket, chore, casted_args)
@@ -111,18 +116,6 @@ defmodule ObanChoreWeb.ChoreComponent do
     else
       {:noreply, assign(socket, form: to_form(Map.put(changeset, :action, :insert), as: :args))}
     end
-  end
-
-  @impl true
-  def handle_event("confirm_execute", _params, socket) do
-    chore = socket.assigns.chore
-    params = socket.assigns.duplicate_warning
-    changeset = chore.module.changeset(params)
-    casted_args = Ecto.Changeset.apply_changes(changeset)
-
-    socket
-    |> assign(duplicate_warning: nil)
-    |> perform_execute(chore, casted_args)
   end
 
   @impl true

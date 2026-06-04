@@ -122,8 +122,6 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     |> form("[id=\"form-#{chore_module}\"]", args: %{username: "john_doe", admin: "true"})
     |> render_submit()
 
-    render(view)
-
     # 1. Assert that the first job is inserted
     assert [job1] = ObanChore.TestRepo.all(Oban.Job)
     assert job1.worker == "ObanChoreWeb.DashboardLiveTest.DashboardTestChore"
@@ -142,49 +140,23 @@ defmodule ObanChoreWeb.DashboardLiveTest do
 
     # Assert duplicate warning banner is shown and job is NOT inserted yet
     assert has_element?(element(view, "[data-role=duplicate-warning-banner]"))
-    assert [job_before_confirm] = ObanChore.TestRepo.all(Oban.Job)
-    assert job_before_confirm.id == job1.id
-
-    # Confirm the duplicate execution
-    view
-    |> element("[data-role=duplicate-warning-banner] button.oc-btn-warning")
-    |> render_click()
-
-    # Assert duplicate warning banner is gone after confirmation
-    refute has_element?(element(view, "[data-role=duplicate-warning-banner]"))
-
-    # Because unique execution was active, even after confirmation, no new job is inserted (Oban unique conflict handles it)
-    assert [job_after_unique] = ObanChore.TestRepo.all(Oban.Job)
-    assert job_after_unique.id == job1.id
     assert ObanChore.TestRepo.aggregate(Oban.Job, :count) == 1
 
-    # 3. Select New Execution tab again to disable unique execution and trigger another duplicate
-    view |> element("button[phx-value-tab=new]") |> render_click()
-
-    # Uncheck the "Unique per args" checkbox
+    # 3. Uncheck the "Unique per args" checkbox
     view
     |> element("input[id=\"unique-Elixir.ObanChoreWeb.DashboardLiveTest.DashboardTestChore\"]")
     |> render_click()
 
-    # Submit the duplicate arguments again
+    # Assert warning banner is cleared automatically upon unchecking uniqueness
+    refute has_element?(element(view, "[data-role=duplicate-warning-banner]"))
+
+    # 4. Submit the duplicate arguments again (unique execution is now false)
     view
     |> form("[id=\"form-#{chore_module}\"]", args: %{username: "john_doe", admin: "true"})
     |> render_submit()
 
-    # Assert duplicate warning banner is shown again and job is NOT inserted yet
-    assert has_element?(element(view, "[data-role=duplicate-warning-banner]"))
-    assert render(view) =~ "Duplicate Execution Warning"
-    assert ObanChore.TestRepo.aggregate(Oban.Job, :count) == 1
-
-    # Confirm the duplicate execution
-    view
-    |> element("[data-role=duplicate-warning-banner] button.oc-btn-warning")
-    |> render_click()
-
-    # Assert duplicate warning banner is gone after confirmation
+    # Assert duplicate warning banner is not shown and a new duplicate job is successfully inserted!
     refute has_element?(element(view, "[data-role=duplicate-warning-banner]"))
-
-    # Because unique execution was disabled, after confirmation a new duplicate job is successfully inserted!
     assert jobs = ObanChore.TestRepo.all(Oban.Job)
     assert length(jobs) == 2
     assert Enum.all?(jobs, fn job -> job.args == %{"username" => "john_doe", "admin" => true} end)
@@ -226,14 +198,8 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     |> form("[id=\"form-#{chore_module}\"]", args: %{username: "jane_doe"})
     |> render_submit()
 
-    # Assert duplicate warning banner is shown
-    assert has_element?(element(view, "[data-role=duplicate-warning-banner]"))
-    assert ObanChore.TestRepo.aggregate(Oban.Job, :count) == 1
-
-    # Confirm the duplicate execution (will fail to create a new job due to Oban's DB-level unique constraint)
-    view
-    |> element("[data-role=duplicate-warning-banner] button.oc-btn-warning")
-    |> render_click()
+    # Assert duplicate warning banner is NOT shown (natively unique jobs don't show the banner)
+    refute has_element?(element(view, "[data-role=duplicate-warning-banner]"))
 
     # Assert that no new job was created since it's unique
     assert ObanChore.TestRepo.aggregate(Oban.Job, :count) == 1

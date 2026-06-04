@@ -133,8 +133,8 @@ defmodule ObanChoreWeb.CoreComponents do
   @doc """
   Renders a warning banner for duplicate chore execution.
   """
-  attr(:on_confirm, :string, required: true)
-  attr(:on_cancel, :string, required: true)
+  attr(:on_dismiss, :string, required: true)
+  attr(:message, :string, required: true)
   attr(:rest, :global)
 
   def duplicate_warning_banner(assigns) do
@@ -154,25 +154,17 @@ defmodule ObanChoreWeb.CoreComponents do
           <h3 class="oc-alert-warning-title">Duplicate Execution Warning</h3>
           <div class="oc-alert-warning-text">
             <p>
-              A job with these exact arguments is already running or scheduled. Are you sure you want to trigger it again?
+              <%= @message %>
             </p>
           </div>
           <div class="oc-alert-warning-actions">
             <button
               type="button"
-              phx-click={@on_confirm}
+              phx-click={@on_dismiss}
               phx-target={Map.get(@rest, :"phx-target")}
               class="oc-btn oc-btn-warning"
             >
-              Confirm anyway
-            </button>
-            <button
-              type="button"
-              phx-click={@on_cancel}
-              phx-target={Map.get(@rest, :"phx-target")}
-              class="oc-link-warning"
-            >
-              Cancel
+              Dismiss
             </button>
           </div>
         </div>
