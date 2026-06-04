@@ -35,48 +35,11 @@ defmodule ObanChoreWeb.ChoreComponent do
               <% end %>
 
               <div style="border-top: 1px solid var(--oc-gray-200); padding-top: 1.5rem; margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
-                <div class="oc-form-group">
-                  <label class="oc-label">Schedule Execution</label>
-                  <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-                    <select
-                      name="schedule_type"
-                      phx-target={@myself}
-                      class="oc-input"
-                      style="max-width: 15rem;"
-                    >
-                      <%= for {label, value} <- [
-                            {"Run immediately", "immediately"},
-                            {"In 5 minutes", "5_min"},
-                            {"In 15 minutes", "15_min"},
-                            {"In 30 minutes", "30_min"},
-                            {"In 1 hour", "1_hour"},
-                            {"In 2 hours", "2_hour"},
-                            {"In 12 hours", "12_hour"},
-                            {"In 24 hours", "24_hour"},
-                            {"Custom delay...", "custom"}
-                          ] do %>
-                        <option value={value} selected={@schedule_type == value}><%= label %></option>
-                      <% end %>
-                    </select>
-
-                    <%= if @schedule_type == "custom" do %>
-                      <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <input
-                          type="number"
-                          name="custom_delay_minutes"
-                          value={@custom_delay_minutes}
-                          phx-target={@myself}
-                          class="oc-input"
-                          style="max-width: 8rem;"
-                          placeholder="Minutes"
-                          min="1"
-                          required
-                        />
-                        <span class="oc-text-sm oc-text-gray-500">minutes</span>
-                      </div>
-                    <% end %>
-                  </div>
-                </div>
+                <.schedule_selector
+                  schedule_type={@schedule_type}
+                  custom_delay_minutes={@custom_delay_minutes}
+                  phx_target={@myself}
+                />
 
                 <div class="oc-flex oc-items-center oc-justify-between oc-gap-2">
                   <.unique_execution_toggle
