@@ -21,9 +21,10 @@ defmodule ObanChoreWeb.ChoreComponent do
 
         <div class="oc-card">
           <div class="oc-card-body">
-            <.form for={@form} phx-change="validate" phx-submit="execute" phx-target={@myself} data-role="execute-form" style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <.form id={"form-#{@id}"} for={@form} phx-change="validate" phx-submit="execute" phx-target={@myself} data-role="execute-form" style="display: flex; flex-direction: column; gap: 1.5rem;">
               <%= for {field, opts} <- @chore.fields do %>
                 <.input
+                  id={"#{@id}-#{field}"}
                   field={@form[field]}
                   label={Keyword.get(opts, :label, field)}
                   type={type_to_input_type(Keyword.get(opts, :type))}

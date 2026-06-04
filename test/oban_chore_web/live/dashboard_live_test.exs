@@ -18,6 +18,19 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     def perform(_), do: :ok
   end
 
+  defmodule DashboardUniqueChore do
+    use ObanChore.Worker,
+      name: "Dashboard Unique Chore",
+      description: "A test chore with unique constraint",
+      fields: [
+        username: [type: :string, required: true]
+      ],
+      unique: [period: :infinity]
+
+    @impl Oban.Worker
+    def perform(_), do: :ok
+  end
+
   setup do
     # Set the pubsub server application environment required by ObanChore
     # to the endpoint's running PubSub instance.
@@ -41,7 +54,7 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     # Start the ObanChore.Plugin with our test chore
     start_supervised!({
       ObanChore.Plugin,
-      chores: [DashboardTestChore], pubsub_server: ObanChore.EndpointPubSub
+      chores: [DashboardTestChore, DashboardUniqueChore], pubsub_server: ObanChore.EndpointPubSub
     })
 
     # Synchronize with the Plugin's handle_continue
@@ -78,7 +91,7 @@ defmodule ObanChoreWeb.DashboardLiveTest do
 
     # Fill and submit form
     view
-    |> form("form[data-role=execute-form]", args: %{username: "john_doe", admin: "true"})
+    |> form("[id=\"form-#{chore_module}\"]", args: %{username: "john_doe", admin: "true"})
     |> render_submit()
 
     # Assert that the job was actually inserted in the database
@@ -106,7 +119,7 @@ defmodule ObanChoreWeb.DashboardLiveTest do
 
     # Fill and submit first execution
     view
-    |> form("form[data-role=execute-form]", args: %{username: "john_doe", admin: "true"})
+    |> form("[id=\"form-#{chore_module}\"]", args: %{username: "john_doe", admin: "true"})
     |> render_submit()
 
     render(view)
@@ -124,7 +137,7 @@ defmodule ObanChoreWeb.DashboardLiveTest do
 
     # Submit the form with the same arguments
     view
-    |> form("form[data-role=execute-form]", args: %{username: "john_doe", admin: "true"})
+    |> form("[id=\"form-#{chore_module}\"]", args: %{username: "john_doe", admin: "true"})
     |> render_submit()
 
     # Assert duplicate warning banner is shown and job is NOT inserted yet
@@ -155,7 +168,7 @@ defmodule ObanChoreWeb.DashboardLiveTest do
 
     # Submit the duplicate arguments again
     view
-    |> form("form[data-role=execute-form]", args: %{username: "john_doe", admin: "true"})
+    |> form("[id=\"form-#{chore_module}\"]", args: %{username: "john_doe", admin: "true"})
     |> render_submit()
 
     # Assert duplicate warning banner is shown again and job is NOT inserted yet
@@ -175,5 +188,54 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     assert jobs = ObanChore.TestRepo.all(Oban.Job)
     assert length(jobs) == 2
     assert Enum.all?(jobs, fn job -> job.args == %{"username" => "john_doe", "admin" => true} end)
+  end
+
+  test "respects job unique configuration and disables toggle" do
+    conn = build_conn()
+    {:ok, view, _html} = live(conn, "/ops/chores")
+
+    # Select the unique chore
+    chore_module = to_string(DashboardUniqueChore)
+
+    view
+    |> element("button[data-role=chore-select][data-chore-module=\"#{chore_module}\"]")
+    |> render_click()
+
+    # Verify unique toggle exists and is disabled
+    toggle_selector =
+      "input[id=\"unique-Elixir.ObanChoreWeb.DashboardLiveTest.DashboardUniqueChore\"]"
+
+    assert has_element?(element(view, toggle_selector))
+    assert render(view) =~ "disabled"
+
+    # Fill and submit first execution
+    view
+    |> form("[id=\"form-#{chore_module}\"]", args: %{username: "jane_doe"})
+    |> render_submit()
+
+    # 1. Assert that the first job is inserted
+    assert [job1] = ObanChore.TestRepo.all(Oban.Job)
+    assert job1.worker == "ObanChoreWeb.DashboardLiveTest.DashboardUniqueChore"
+    assert job1.args == %{"username" => "jane_doe"}
+
+    # 2. Select New Execution tab to try to run a duplicate
+    view |> element("button[phx-value-tab=new]") |> render_click()
+
+    # Submit the form with the same arguments
+    view
+    |> form("[id=\"form-#{chore_module}\"]", args: %{username: "jane_doe"})
+    |> render_submit()
+
+    # Assert duplicate warning banner is shown
+    assert has_element?(element(view, "[data-role=duplicate-warning-banner]"))
+    assert ObanChore.TestRepo.aggregate(Oban.Job, :count) == 1
+
+    # Confirm the duplicate execution (will fail to create a new job due to Oban's DB-level unique constraint)
+    view
+    |> element("[data-role=duplicate-warning-banner] button.oc-btn-warning")
+    |> render_click()
+
+    # Assert that no new job was created since it's unique
+    assert ObanChore.TestRepo.aggregate(Oban.Job, :count) == 1
   end
 end

@@ -20,6 +20,16 @@ defmodule ObanChore.WorkerTest do
     def perform(%Oban.Job{}), do: :ok
   end
 
+  defmodule UniqueChore do
+    use ObanChore.Worker,
+      name: "Unique Chore",
+      fields: [],
+      unique: [period: 60]
+
+    @impl Oban.Worker
+    def perform(_), do: :ok
+  end
+
   defmodule ComprehensiveWorker do
     use ObanChore.Worker,
       name: "All Types Chore",
@@ -55,6 +65,14 @@ defmodule ObanChore.WorkerTest do
     # Verify fallback for workers without description
     info = MyTestChore.__chore_info__()
     assert info.description == nil
+  end
+
+  test "captures uniqueness in __chore_info__" do
+    info = UniqueChore.__chore_info__()
+    assert info.unique == true
+
+    info = MyTestChore.__chore_info__()
+    assert info.unique == false
   end
 
   test "correctly maps UI types to Ecto types and casts them" do
