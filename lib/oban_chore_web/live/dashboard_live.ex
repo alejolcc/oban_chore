@@ -211,6 +211,11 @@ defmodule ObanChoreWeb.DashboardLive do
       Phoenix.PubSub.subscribe(pubsub, "oban_chore:status:#{job.id}")
     end
 
+    job = %{
+      job
+      | state: if(is_binary(job.state), do: String.to_existing_atom(job.state), else: job.state)
+    }
+
     new_jobs = Map.put(socket.assigns.jobs, job.id, job)
 
     new_chore_jobs =
