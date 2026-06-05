@@ -18,6 +18,19 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     def perform(_), do: :ok
   end
 
+  defmodule DashboardUniqueChore do
+    use ObanChore.Worker,
+      name: "Dashboard Unique Chore",
+      description: "A test chore with unique constraint",
+      fields: [
+        username: [type: :string, required: true]
+      ],
+      unique: [period: :infinity]
+
+    @impl Oban.Worker
+    def perform(_), do: :ok
+  end
+
   setup do
     # Set the pubsub server application environment required by ObanChore
     # to the endpoint's running PubSub instance.
@@ -41,7 +54,7 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     # Start the ObanChore.Plugin with our test chore
     start_supervised!({
       ObanChore.Plugin,
-      chores: [DashboardTestChore], pubsub_server: ObanChore.EndpointPubSub
+      chores: [DashboardTestChore, DashboardUniqueChore], pubsub_server: ObanChore.EndpointPubSub
     })
 
     # Synchronize with the Plugin's handle_continue
@@ -78,7 +91,7 @@ defmodule ObanChoreWeb.DashboardLiveTest do
 
     # Fill and submit form
     view
-    |> form("form[data-role=execute-form]", args: %{username: "john_doe", admin: "true"})
+    |> form("[id=\"form-#{chore_module}\"]", args: %{username: "john_doe", admin: "true"})
     |> render_submit()
 
     # Assert that the job was actually inserted in the database
@@ -106,10 +119,8 @@ defmodule ObanChoreWeb.DashboardLiveTest do
 
     # Fill and submit first execution
     view
-    |> form("form[data-role=execute-form]", args: %{username: "john_doe", admin: "true"})
+    |> form("[id=\"form-#{chore_module}\"]", args: %{username: "john_doe", admin: "true"})
     |> render_submit()
-
-    render(view)
 
     # 1. Assert that the first job is inserted
     assert [job1] = ObanChore.TestRepo.all(Oban.Job)
@@ -124,56 +135,145 @@ defmodule ObanChoreWeb.DashboardLiveTest do
 
     # Submit the form with the same arguments
     view
-    |> form("form[data-role=execute-form]", args: %{username: "john_doe", admin: "true"})
+    |> form("[id=\"form-#{chore_module}\"]", args: %{username: "john_doe", admin: "true"})
     |> render_submit()
 
     # Assert duplicate warning banner is shown and job is NOT inserted yet
     assert has_element?(element(view, "[data-role=duplicate-warning-banner]"))
-    assert [job_before_confirm] = ObanChore.TestRepo.all(Oban.Job)
-    assert job_before_confirm.id == job1.id
-
-    # Confirm the duplicate execution
-    view
-    |> element("[data-role=duplicate-warning-banner] button.oc-btn-warning")
-    |> render_click()
-
-    # Assert duplicate warning banner is gone after confirmation
-    refute has_element?(element(view, "[data-role=duplicate-warning-banner]"))
-
-    # Because unique execution was active, even after confirmation, no new job is inserted (Oban unique conflict handles it)
-    assert [job_after_unique] = ObanChore.TestRepo.all(Oban.Job)
-    assert job_after_unique.id == job1.id
     assert ObanChore.TestRepo.aggregate(Oban.Job, :count) == 1
 
-    # 3. Select New Execution tab again to disable unique execution and trigger another duplicate
-    view |> element("button[phx-value-tab=new]") |> render_click()
-
-    # Uncheck the "Unique per args" checkbox
+    # 3. Uncheck the "Unique per args" checkbox
     view
     |> element("input[id=\"unique-Elixir.ObanChoreWeb.DashboardLiveTest.DashboardTestChore\"]")
     |> render_click()
 
-    # Submit the duplicate arguments again
-    view
-    |> form("form[data-role=execute-form]", args: %{username: "john_doe", admin: "true"})
-    |> render_submit()
-
-    # Assert duplicate warning banner is shown again and job is NOT inserted yet
-    assert has_element?(element(view, "[data-role=duplicate-warning-banner]"))
-    assert render(view) =~ "Duplicate Execution Warning"
-    assert ObanChore.TestRepo.aggregate(Oban.Job, :count) == 1
-
-    # Confirm the duplicate execution
-    view
-    |> element("[data-role=duplicate-warning-banner] button.oc-btn-warning")
-    |> render_click()
-
-    # Assert duplicate warning banner is gone after confirmation
+    # Assert warning banner is cleared automatically upon unchecking uniqueness
     refute has_element?(element(view, "[data-role=duplicate-warning-banner]"))
 
-    # Because unique execution was disabled, after confirmation a new duplicate job is successfully inserted!
+    # 4. Submit the duplicate arguments again (unique execution is now false)
+    view
+    |> form("[id=\"form-#{chore_module}\"]", args: %{username: "john_doe", admin: "true"})
+    |> render_submit()
+
+    # Assert duplicate warning banner is not shown and a new duplicate job is successfully inserted!
+    refute has_element?(element(view, "[data-role=duplicate-warning-banner]"))
     assert jobs = ObanChore.TestRepo.all(Oban.Job)
     assert length(jobs) == 2
     assert Enum.all?(jobs, fn job -> job.args == %{"username" => "john_doe", "admin" => true} end)
+  end
+
+  test "respects job unique configuration and disables toggle" do
+    conn = build_conn()
+    {:ok, view, _html} = live(conn, "/ops/chores")
+
+    # Select the unique chore
+    chore_module = to_string(DashboardUniqueChore)
+
+    view
+    |> element("button[data-role=chore-select][data-chore-module=\"#{chore_module}\"]")
+    |> render_click()
+
+    # Verify unique toggle exists and is disabled
+    toggle_selector =
+      "input[id=\"unique-Elixir.ObanChoreWeb.DashboardLiveTest.DashboardUniqueChore\"]"
+
+    assert has_element?(element(view, toggle_selector))
+    assert render(view) =~ "disabled"
+
+    # Fill and submit first execution
+    view
+    |> form("[id=\"form-#{chore_module}\"]", args: %{username: "jane_doe"})
+    |> render_submit()
+
+    # 1. Assert that the first job is inserted
+    assert [job1] = ObanChore.TestRepo.all(Oban.Job)
+    assert job1.worker == "ObanChoreWeb.DashboardLiveTest.DashboardUniqueChore"
+    assert job1.args == %{"username" => "jane_doe"}
+
+    # 2. Select New Execution tab to try to run a duplicate
+    view |> element("button[phx-value-tab=new]") |> render_click()
+
+    # Submit the form with the same arguments
+    view
+    |> form("[id=\"form-#{chore_module}\"]", args: %{username: "jane_doe"})
+    |> render_submit()
+
+    # Assert duplicate warning banner is NOT shown (natively unique jobs don't show the banner)
+    refute has_element?(element(view, "[data-role=duplicate-warning-banner]"))
+
+    # Assert that no new job was created since it's unique
+    assert ObanChore.TestRepo.aggregate(Oban.Job, :count) == 1
+  end
+
+  describe "relative scheduling" do
+    test "schedules a chore using presets" do
+      conn = build_conn()
+      {:ok, view, _html} = live(conn, "/ops/chores")
+
+      # Select the chore
+      chore_module = to_string(DashboardTestChore)
+
+      view
+      |> element("button[data-role=chore-select][data-chore-module=\"#{chore_module}\"]")
+      |> render_click()
+
+      # Schedule with a preset: 5 minutes
+      view
+      |> form("[id=\"form-#{chore_module}\"]", %{
+        "args" => %{username: "john_preset", admin: "false"},
+        "schedule_type" => "5_min"
+      })
+      |> render_submit()
+
+      # Verify job is scheduled in the database
+      assert [job_preset] = ObanChore.TestRepo.all(Oban.Job)
+      assert job_preset.state == "scheduled"
+      assert job_preset.args == %{"username" => "john_preset", "admin" => false}
+      # Check that scheduled_at is roughly 5 minutes from now
+      diff = DateTime.diff(job_preset.scheduled_at, DateTime.utc_now())
+      # within 10 seconds
+      assert_in_delta diff, 300, 10
+    end
+
+    test "schedules a chore using custom input" do
+      conn = build_conn()
+      {:ok, view, _html} = live(conn, "/ops/chores")
+
+      # Select the chore
+      chore_module = to_string(DashboardTestChore)
+
+      view
+      |> element("button[data-role=chore-select][data-chore-module=\"#{chore_module}\"]")
+      |> render_click()
+
+      # Change schedule_type to custom
+      html =
+        view
+        |> form("[id=\"form-#{chore_module}\"]", %{
+          "args" => %{username: "john_custom", admin: "false"},
+          "schedule_type" => "custom"
+        })
+        |> render_change()
+
+      assert html =~ "custom_delay_minutes"
+
+      # Schedule with custom delay (90 minutes)
+      view
+      |> form("[id=\"form-#{chore_module}\"]", %{
+        "args" => %{username: "john_custom", admin: "false"},
+        "schedule_type" => "custom",
+        "custom_delay_minutes" => "90"
+      })
+      |> render_submit()
+
+      # Verify custom job is scheduled correctly
+      assert [job_custom] = ObanChore.TestRepo.all(Oban.Job)
+      assert job_custom.state == "scheduled"
+      assert job_custom.args == %{"username" => "john_custom", "admin" => false}
+
+      diff_custom = DateTime.diff(job_custom.scheduled_at, DateTime.utc_now())
+      # within 10 seconds
+      assert_in_delta diff_custom, 5400, 10
+    end
   end
 end

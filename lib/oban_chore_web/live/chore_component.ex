@@ -12,8 +12,8 @@ defmodule ObanChoreWeb.ChoreComponent do
       <div class="oc-container" style="display: flex; flex-direction: column; gap: 1.5rem;">
         <%= if @duplicate_warning do %>
           <.duplicate_warning_banner
-            on_confirm="confirm_execute"
-            on_cancel="cancel_execute"
+            on_dismiss="cancel_execute"
+            message="A job with these exact arguments is already running or scheduled. Please uncheck 'Unique per args' to run it anyway."
             phx-target={@myself}
             data-role="duplicate-warning-banner"
           />
@@ -21,9 +21,10 @@ defmodule ObanChoreWeb.ChoreComponent do
 
         <div class="oc-card">
           <div class="oc-card-body">
-            <.form for={@form} phx-change="validate" phx-submit="execute" phx-target={@myself} data-role="execute-form" style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <.form id={"form-#{@id}"} for={@form} phx-change="validate" phx-submit="execute" phx-target={@myself} data-role="execute-form" style="display: flex; flex-direction: column; gap: 1.5rem;">
               <%= for {field, opts} <- @chore.fields do %>
                 <.input
+                  id={"#{@id}-#{field}"}
                   field={@form[field]}
                   label={Keyword.get(opts, :label, field)}
                   type={type_to_input_type(Keyword.get(opts, :type))}
@@ -33,20 +34,28 @@ defmodule ObanChoreWeb.ChoreComponent do
                 />
               <% end %>
 
-              <div class="oc-flex oc-items-center oc-justify-between oc-gap-2" style="border-top: 1px solid var(--oc-gray-200); padding-top: 1.5rem; margin-top: 1.5rem;">
-                <.unique_execution_toggle
-                  id={"unique-#{@id}"}
-                  unique_execution={@unique_execution}
-                  worker_has_unique={@chore.unique}
-                  phx_click={Phoenix.LiveView.JS.push("toggle_unique", target: @myself)}
-                  phx-target={@myself}
+              <div style="border-top: 1px solid var(--oc-gray-200); padding-top: 1.5rem; margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                <.schedule_selector
+                  schedule_type={@schedule_type}
+                  custom_delay_minutes={@custom_delay_minutes}
+                  phx_target={@myself}
                 />
-                <button
-                  type="submit"
-                  class="oc-btn oc-btn-primary"
-                >
-                  Execute Chore
-                </button>
+
+                <div class="oc-flex oc-items-center oc-justify-between oc-gap-2">
+                  <.unique_execution_toggle
+                    id={"unique-#{@id}"}
+                    unique_execution={@unique_execution}
+                    worker_has_unique={@chore.unique}
+                    phx_click={Phoenix.LiveView.JS.push("toggle_unique", target: @myself)}
+                    phx-target={@myself}
+                  />
+                  <button
+                    type="submit"
+                    class="oc-btn oc-btn-primary"
+                  >
+                    <%= if @schedule_type == "immediately", do: "Execute Chore", else: "Schedule Chore" %>
+                  </button>
+                </div>
               </div>
             </.form>
           </div>
@@ -73,7 +82,9 @@ defmodule ObanChoreWeb.ChoreComponent do
        |> assign(
          form: to_form(chore.module.changeset(defaults), as: :args),
          duplicate_warning: nil,
-         unique_execution: chore.unique || true
+         unique_execution: chore.unique || true,
+         schedule_type: "immediately",
+         custom_delay_minutes: 10
        )}
     else
       {:ok, assign(socket, assigns)}
@@ -82,30 +93,58 @@ defmodule ObanChoreWeb.ChoreComponent do
 
   @impl true
   def handle_event("toggle_unique", _params, socket) do
-    {:noreply, assign(socket, unique_execution: not socket.assigns.unique_execution)}
+    {:noreply,
+     socket
+     |> assign(unique_execution: not socket.assigns.unique_execution)
+     |> assign(duplicate_warning: nil)}
   end
 
   @impl true
-  def handle_event("validate", %{"args" => params}, socket) do
+  def handle_event("validate", %{"args" => params} = form_params, socket) do
+    schedule_type = Map.get(form_params, "schedule_type", socket.assigns.schedule_type)
+
+    custom_delay_minutes =
+      Map.get(form_params, "custom_delay_minutes", socket.assigns.custom_delay_minutes)
+
     changeset =
       socket.assigns.chore.module.changeset(params)
       |> Map.put(:action, :validate)
 
-    {:noreply, assign(socket, form: to_form(changeset, as: :args), duplicate_warning: nil)}
+    {:noreply,
+     socket
+     |> assign(form: to_form(changeset, as: :args), duplicate_warning: nil)
+     |> assign(schedule_type: schedule_type, custom_delay_minutes: custom_delay_minutes)}
   end
 
   @impl true
-  def handle_event("execute", %{"args" => params}, socket) do
+  def handle_event("execute", %{"args" => params} = form_params, socket) do
     chore = socket.assigns.chore
     changeset = chore.module.changeset(params)
 
+    schedule_type = Map.get(form_params, "schedule_type", socket.assigns.schedule_type)
+
+    custom_delay_minutes =
+      Map.get(form_params, "custom_delay_minutes", socket.assigns.custom_delay_minutes)
+
+    socket =
+      socket
+      |> assign(schedule_type: schedule_type, custom_delay_minutes: custom_delay_minutes)
+
     if changeset.valid? do
       casted_args = Ecto.Changeset.apply_changes(changeset)
+      has_worker_unique? = socket.assigns.chore.unique
 
-      if ObanChore.running_with_args?(chore.module, casted_args) do
+      if not has_worker_unique? and socket.assigns.unique_execution and
+           ObanChore.running_with_args?(chore.module, casted_args) do
         {:noreply, assign(socket, duplicate_warning: params)}
       else
-        perform_execute(socket, chore, casted_args)
+        case get_delay_minutes(schedule_type, custom_delay_minutes) do
+          {:ok, delay} ->
+            perform_execute(socket, chore, casted_args, delay)
+
+          {:error, message} ->
+            {:noreply, put_flash(socket, :error, message)}
+        end
       end
     else
       {:noreply, assign(socket, form: to_form(Map.put(changeset, :action, :insert), as: :args))}
@@ -113,29 +152,24 @@ defmodule ObanChoreWeb.ChoreComponent do
   end
 
   @impl true
-  def handle_event("confirm_execute", _params, socket) do
-    chore = socket.assigns.chore
-    params = socket.assigns.duplicate_warning
-    changeset = chore.module.changeset(params)
-    casted_args = Ecto.Changeset.apply_changes(changeset)
-
-    socket
-    |> assign(duplicate_warning: nil)
-    |> perform_execute(chore, casted_args)
-  end
-
-  @impl true
   def handle_event("cancel_execute", _params, socket) do
     {:noreply, assign(socket, duplicate_warning: nil)}
   end
 
-  defp perform_execute(socket, chore, casted_args) do
+  defp perform_execute(socket, chore, casted_args, delay) do
     has_worker_unique? = chore.unique
 
-    opts =
+    unique_opts =
       if socket.assigns.unique_execution and not has_worker_unique?,
         do: [unique: [period: :infinity, states: [:available, :scheduled, :executing]]],
         else: []
+
+    opts =
+      if delay do
+        Keyword.put(unique_opts, :schedule_in, delay * 60)
+      else
+        unique_opts
+      end
 
     case Oban.insert(chore.module.new(casted_args, opts)) do
       {:ok, %{conflict?: conflict?} = job} ->
@@ -143,9 +177,11 @@ defmodule ObanChoreWeb.ChoreComponent do
         send(self(), {:job_enqueued, job, chore.module})
 
         message =
-          if conflict?,
-            do: "Job already running with these arguments",
-            else: "Successfully enqueued #{chore.name}"
+          cond do
+            conflict? -> "Job already running with these arguments"
+            delay -> "Successfully scheduled #{chore.name} to run in #{delay} minutes"
+            true -> "Successfully enqueued #{chore.name}"
+          end
 
         {:noreply, put_flash(socket, :info, message)}
 
@@ -154,6 +190,36 @@ defmodule ObanChoreWeb.ChoreComponent do
         {:noreply, put_flash(socket, :error, "Failed to enqueue #{chore.name}")}
     end
   end
+
+  defp get_delay_minutes("immediately", _), do: {:ok, nil}
+  defp get_delay_minutes("5_min", _), do: {:ok, 5}
+  defp get_delay_minutes("15_min", _), do: {:ok, 15}
+  defp get_delay_minutes("30_min", _), do: {:ok, 30}
+  defp get_delay_minutes("1_hour", _), do: {:ok, 60}
+  defp get_delay_minutes("2_hour", _), do: {:ok, 120}
+  defp get_delay_minutes("12_hour", _), do: {:ok, 720}
+  defp get_delay_minutes("24_hour", _), do: {:ok, 1440}
+
+  defp get_delay_minutes("custom", delay) do
+    case parse_integer(delay) do
+      {:ok, val} when val > 0 ->
+        {:ok, val}
+
+      _ ->
+        {:error, "Please enter a valid positive number of minutes for custom delay."}
+    end
+  end
+
+  defp parse_integer(val) when is_integer(val), do: {:ok, val}
+
+  defp parse_integer(val) when is_binary(val) do
+    case Integer.parse(val) do
+      {num, ""} -> {:ok, num}
+      _ -> :error
+    end
+  end
+
+  defp parse_integer(_), do: :error
 
   defp type_to_input_type(type) do
     case type do
