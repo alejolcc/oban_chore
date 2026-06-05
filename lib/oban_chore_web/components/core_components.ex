@@ -215,6 +215,60 @@ defmodule ObanChoreWeb.CoreComponents do
   end
 
   @doc """
+  Renders the schedule selector control.
+  """
+  attr(:schedule_type, :string, required: true)
+  attr(:custom_delay_minutes, :any, required: true)
+  attr(:phx_target, :any, default: nil)
+
+  def schedule_selector(assigns) do
+    ~H"""
+    <div class="oc-form-group">
+      <label class="oc-label">Schedule Execution</label>
+      <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+        <select
+          name="schedule_type"
+          phx-target={@phx_target}
+          class="oc-input"
+          style="max-width: 15rem;"
+        >
+          <%= for {label, value} <- [
+                {"Run immediately", "immediately"},
+                {"In 5 minutes", "5_min"},
+                {"In 15 minutes", "15_min"},
+                {"In 30 minutes", "30_min"},
+                {"In 1 hour", "1_hour"},
+                {"In 2 hours", "2_hour"},
+                {"In 12 hours", "12_hour"},
+                {"In 24 hours", "24_hour"},
+                {"Custom delay...", "custom"}
+              ] do %>
+            <option value={value} selected={@schedule_type == value}><%= label %></option>
+          <% end %>
+        </select>
+
+        <%= if @schedule_type == "custom" do %>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <input
+              type="number"
+              name="custom_delay_minutes"
+              value={@custom_delay_minutes}
+              phx-target={@phx_target}
+              class="oc-input"
+              style="max-width: 8rem;"
+              placeholder="Minutes"
+              min="1"
+              required
+            />
+            <span class="oc-text-sm oc-text-gray-500">minutes</span>
+          </div>
+        <% end %>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Renders flash notices.
 
   ## Examples
