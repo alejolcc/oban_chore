@@ -12,7 +12,8 @@ defmodule ObanChoreWeb.DashboardLiveTest do
       fields: [
         username: [type: :string, required: true],
         admin: [type: :boolean, default: false]
-      ]
+      ],
+      tags: ["backfill"]
 
     @impl Oban.Worker
     def perform(_), do: :ok
@@ -274,6 +275,22 @@ defmodule ObanChoreWeb.DashboardLiveTest do
       diff_custom = DateTime.diff(job_custom.scheduled_at, DateTime.utc_now())
       # within 10 seconds
       assert_in_delta diff_custom, 5400, 10
+    end
+
+    test "filters chores by module whitelist" do
+      conn = build_conn()
+      {:ok, _view, html} = live(conn, "/filtered/chores")
+
+      assert html =~ "Dashboard Test Chore"
+      refute html =~ "Dashboard Unique Chore"
+    end
+
+    test "filters chores by tags" do
+      conn = build_conn()
+      {:ok, _view, html} = live(conn, "/tagged/chores")
+
+      assert html =~ "Dashboard Test Chore"
+      refute html =~ "Dashboard Unique Chore"
     end
   end
 end

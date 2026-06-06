@@ -120,7 +120,8 @@ defmodule ObanChore.Worker do
           name: unquote(name_ast),
           description: unquote(chore_description),
           fields: unquote(chore_fields),
-          unique: unquote(has_unique)
+          unique: unquote(has_unique),
+          tags: Keyword.get(__opts__(), :tags, [])
         }
       end
 

@@ -13,4 +13,14 @@ defmodule ObanChore.TestRouter do
     pipe_through(:browser)
     oban_chore_dashboard("/ops/chores")
   end
+
+  scope "/filtered" do
+    pipe_through(:browser)
+    oban_chore_dashboard("/chores", chores: [ObanChoreWeb.DashboardLiveTest.DashboardTestChore])
+  end
+
+  scope "/tagged" do
+    pipe_through(:browser)
+    oban_chore_dashboard("/chores", tags: [:backfill])
+  end
 end
