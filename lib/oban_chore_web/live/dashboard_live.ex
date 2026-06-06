@@ -316,12 +316,12 @@ defmodule ObanChoreWeb.DashboardLive do
           opts
           |> Keyword.get(:tags, [])
           |> List.wrap()
-          |> Enum.map(fn t -> if is_atom(t), do: t, else: String.to_atom(to_string(t)) end)
+          |> Enum.map(&to_string/1)
 
         Enum.filter(all_chores, fn chore ->
           chore_tags =
             Map.get(chore, :tags, [])
-            |> Enum.map(fn t -> if is_atom(t), do: t, else: String.to_atom(to_string(t)) end)
+            |> Enum.map(&to_string/1)
 
           Enum.any?(chore_tags, &(&1 in allowed_tags))
         end)
