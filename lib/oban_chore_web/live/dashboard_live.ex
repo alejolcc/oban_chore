@@ -203,7 +203,13 @@ defmodule ObanChoreWeb.DashboardLive do
   @impl true
   def handle_event("select_chore", %{"module" => module_str}, socket) do
     module = String.to_existing_atom(module_str)
-    {:noreply, assign(socket, selected_chore_module: module, selected_tab: :new)}
+    allowed_modules = Enum.map(socket.assigns.chores, & &1.module)
+
+    if module in allowed_modules do
+      {:noreply, assign(socket, selected_chore_module: module, selected_tab: :new)}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true

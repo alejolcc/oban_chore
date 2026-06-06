@@ -276,21 +276,39 @@ defmodule ObanChoreWeb.DashboardLiveTest do
       # within 10 seconds
       assert_in_delta diff_custom, 5400, 10
     end
+  end
 
+  describe "auth" do
     test "filters chores by module whitelist" do
       conn = build_conn()
-      {:ok, _view, html} = live(conn, "/filtered/chores")
+      {:ok, view, _html} = live(conn, "/filtered/chores")
 
-      assert html =~ "Dashboard Test Chore"
-      refute html =~ "Dashboard Unique Chore"
+      assert has_element?(view, "button[data-chore-module=\"#{to_string(DashboardTestChore)}\"]")
+
+      refute has_element?(
+               view,
+               "button[data-chore-module=\"#{to_string(DashboardUniqueChore)}\"]"
+             )
+
+      # Verify websocket selection of filtered-out chore is blocked (HTML remains showing no chore selected)
+      assert render_click(view, "select_chore", %{"module" => to_string(DashboardUniqueChore)}) =~
+               "No chore selected"
     end
 
     test "filters chores by tags" do
       conn = build_conn()
-      {:ok, _view, html} = live(conn, "/tagged/chores")
+      {:ok, view, _html} = live(conn, "/tagged/chores")
 
-      assert html =~ "Dashboard Test Chore"
-      refute html =~ "Dashboard Unique Chore"
+      assert has_element?(view, "button[data-chore-module=\"#{to_string(DashboardTestChore)}\"]")
+
+      refute has_element?(
+               view,
+               "button[data-chore-module=\"#{to_string(DashboardUniqueChore)}\"]"
+             )
+
+      # Verify websocket selection of filtered-out chore is blocked
+      assert render_click(view, "select_chore", %{"module" => to_string(DashboardUniqueChore)}) =~
+               "No chore selected"
     end
   end
 end
