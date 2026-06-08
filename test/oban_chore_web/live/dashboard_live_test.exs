@@ -12,7 +12,8 @@ defmodule ObanChoreWeb.DashboardLiveTest do
       fields: [
         username: [type: :string, required: true],
         admin: [type: :boolean, default: false]
-      ]
+      ],
+      tags: ["backfill"]
 
     @impl Oban.Worker
     def perform(_), do: :ok
@@ -274,6 +275,40 @@ defmodule ObanChoreWeb.DashboardLiveTest do
       diff_custom = DateTime.diff(job_custom.scheduled_at, DateTime.utc_now())
       # within 10 seconds
       assert_in_delta diff_custom, 5400, 10
+    end
+  end
+
+  describe "auth" do
+    test "filters chores by module whitelist" do
+      conn = build_conn()
+      {:ok, view, _html} = live(conn, "/filtered/chores")
+
+      assert has_element?(view, "button[data-chore-module=\"#{to_string(DashboardTestChore)}\"]")
+
+      refute has_element?(
+               view,
+               "button[data-chore-module=\"#{to_string(DashboardUniqueChore)}\"]"
+             )
+
+      # Verify websocket selection of filtered-out chore is blocked (HTML remains showing no chore selected)
+      assert render_click(view, "select_chore", %{"module" => to_string(DashboardUniqueChore)}) =~
+               "No chore selected"
+    end
+
+    test "filters chores by tags" do
+      conn = build_conn()
+      {:ok, view, _html} = live(conn, "/tagged/chores")
+
+      assert has_element?(view, "button[data-chore-module=\"#{to_string(DashboardTestChore)}\"]")
+
+      refute has_element?(
+               view,
+               "button[data-chore-module=\"#{to_string(DashboardUniqueChore)}\"]"
+             )
+
+      # Verify websocket selection of filtered-out chore is blocked
+      assert render_click(view, "select_chore", %{"module" => to_string(DashboardUniqueChore)}) =~
+               "No chore selected"
     end
   end
 end

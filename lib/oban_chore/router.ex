@@ -17,12 +17,12 @@ defmodule ObanChore.Router do
   ```
   """
 
-  defmacro oban_chore_dashboard(path, _opts \\ []) do
+  defmacro oban_chore_dashboard(path, opts \\ []) do
     quote do
       scope unquote(path), alias: false, as: false do
         import Phoenix.LiveView.Router
 
-        live("/", ObanChoreWeb.DashboardLive, :index)
+        live("/", ObanChoreWeb.DashboardLive, :index, metadata: %{oban_chore_opts: unquote(opts)})
       end
     end
   end

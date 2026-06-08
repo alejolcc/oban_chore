@@ -142,7 +142,30 @@ defmodule ObanChoreWeb.DashboardLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    chores = ObanChore.Plugin.get_chores()
+    {:ok,
+     assign(socket,
+       chores: [],
+       counts: %{},
+       selected_chore_module: nil,
+       jobs: %{},
+       chore_jobs: %{},
+       selected_tab: :new
+     )}
+  end
+
+  @impl true
+  def handle_params(_params, uri, socket) do
+    router_opts =
+      if router = socket.router do
+        match_route_opts(router, uri)
+      else
+        []
+      end
+
+    chores =
+      ObanChore.Plugin.get_chores()
+      |> filter_chores(router_opts)
+
     pubsub = ObanChore.pubsub_server()
 
     if connected?(socket) do
@@ -168,21 +191,25 @@ defmodule ObanChoreWeb.DashboardLive do
         {new_jobs_acc, new_chore_jobs_acc}
       end)
 
-    {:ok,
+    {:noreply,
      assign(socket,
        chores: chores,
        counts: fetch_counts(chores),
-       selected_chore_module: nil,
        jobs: jobs,
-       chore_jobs: chore_jobs,
-       selected_tab: :new
+       chore_jobs: chore_jobs
      )}
   end
 
   @impl true
   def handle_event("select_chore", %{"module" => module_str}, socket) do
     module = String.to_existing_atom(module_str)
-    {:noreply, assign(socket, selected_chore_module: module, selected_tab: :new)}
+    allowed_modules = Enum.map(socket.assigns.chores, & &1.module)
+
+    if module in allowed_modules do
+      {:noreply, assign(socket, selected_chore_module: module, selected_tab: :new)}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -198,45 +225,61 @@ defmodule ObanChoreWeb.DashboardLive do
 
   @impl true
   def handle_info({:oban_chore_count, worker_module, count}, socket) do
-    new_counts = Map.put(socket.assigns.counts, worker_module, count)
-    {:noreply, assign(socket, counts: new_counts)}
+    allowed_modules = Enum.map(socket.assigns.chores, & &1.module)
+
+    if worker_module in allowed_modules do
+      new_counts = Map.put(socket.assigns.counts, worker_module, count)
+      {:noreply, assign(socket, counts: new_counts)}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
   def handle_info({:job_enqueued, job, worker_module}, socket) do
-    pubsub = ObanChore.pubsub_server()
+    allowed_modules = Enum.map(socket.assigns.chores, & &1.module)
 
-    if connected?(socket) do
-      Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
-      Phoenix.PubSub.subscribe(pubsub, "oban_chore:status:#{job.id}")
+    if worker_module in allowed_modules do
+      pubsub = ObanChore.pubsub_server()
+
+      if connected?(socket) do
+        Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
+        Phoenix.PubSub.subscribe(pubsub, "oban_chore:status:#{job.id}")
+      end
+
+      job = %{
+        job
+        | state: if(is_binary(job.state), do: String.to_existing_atom(job.state), else: job.state)
+      }
+
+      new_jobs = Map.put(socket.assigns.jobs, job.id, job)
+
+      new_chore_jobs =
+        Map.update(socket.assigns.chore_jobs, worker_module, [job.id], fn job_ids ->
+          if job.id in job_ids, do: job_ids, else: [job.id | job_ids]
+        end)
+
+      {:noreply,
+       socket
+       |> assign(jobs: new_jobs, chore_jobs: new_chore_jobs, selected_tab: {:job, job.id})}
+    else
+      {:noreply, socket}
     end
-
-    job = %{
-      job
-      | state: if(is_binary(job.state), do: String.to_existing_atom(job.state), else: job.state)
-    }
-
-    new_jobs = Map.put(socket.assigns.jobs, job.id, job)
-
-    new_chore_jobs =
-      Map.update(socket.assigns.chore_jobs, worker_module, [job.id], fn job_ids ->
-        if job.id in job_ids, do: job_ids, else: [job.id | job_ids]
-      end)
-
-    {:noreply,
-     socket
-     |> assign(jobs: new_jobs, chore_jobs: new_chore_jobs, selected_tab: {:job, job.id})}
   end
 
   @impl true
   def handle_info({:oban_chore_state, job_id, state}, socket) do
-    # O(1) update of the flat jobs map
-    new_jobs = Map.update!(socket.assigns.jobs, job_id, fn job -> %{job | state: state} end)
+    # O(1) update of the flat jobs map, check if job exists in this filtered view
+    if Map.has_key?(socket.assigns.jobs, job_id) do
+      new_jobs = Map.update!(socket.assigns.jobs, job_id, fn job -> %{job | state: state} end)
 
-    # Forward to JobComponent
-    send_update(ObanChoreWeb.JobComponent, id: job_id, new_state: state)
+      # Forward to JobComponent
+      send_update(ObanChoreWeb.JobComponent, id: job_id, new_state: state)
 
-    {:noreply, assign(socket, jobs: new_jobs)}
+      {:noreply, assign(socket, jobs: new_jobs)}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -247,5 +290,50 @@ defmodule ObanChoreWeb.DashboardLive do
 
   defp fetch_counts(chores) do
     Map.new(chores, fn chore -> {chore.module, ObanChore.count_running(chore.module, Oban)} end)
+  end
+
+  defp match_route_opts(router, uri) do
+    parsed_uri = URI.parse(uri)
+
+    case Phoenix.Router.route_info(router, "GET", parsed_uri.path, parsed_uri.host) do
+      %{oban_chore_opts: opts} ->
+        opts
+
+      _ ->
+        []
+    end
+  end
+
+  defp filter_chores(all_chores, opts) do
+    has_chores_opt = Keyword.has_key?(opts, :chores)
+    has_tags_opt = Keyword.has_key?(opts, :tags)
+
+    cond do
+      has_chores_opt ->
+        allowed_modules =
+          opts
+          |> Keyword.get(:chores, [])
+          |> List.wrap()
+
+        Enum.filter(all_chores, fn chore -> chore.module in allowed_modules end)
+
+      has_tags_opt ->
+        allowed_tags =
+          opts
+          |> Keyword.get(:tags, [])
+          |> List.wrap()
+          |> Enum.map(&to_string/1)
+
+        Enum.filter(all_chores, fn chore ->
+          chore_tags =
+            Map.get(chore, :tags, [])
+            |> Enum.map(&to_string/1)
+
+          Enum.any?(chore_tags, &(&1 in allowed_tags))
+        end)
+
+      true ->
+        all_chores
+    end
   end
 end
