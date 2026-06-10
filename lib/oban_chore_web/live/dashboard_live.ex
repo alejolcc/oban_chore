@@ -82,7 +82,9 @@ defmodule ObanChoreWeb.DashboardLive do
                     if(@selected_tab == {:job, job.id}, do: "oc-tab-item--active", else: "")
                   ]}
                 >
-                  <span>Job #<%= job.id %></span>
+                  <span>
+                    Job #<%= job.id %><%= if job.state == :scheduled, do: " (in " <> ObanChoreWeb.CoreComponents.format_remaining_time(job.scheduled_at, @now) <> ")" %>
+                  </span>
                   <span class={[
                     "oc-status-dot",
                     case job.state do
@@ -119,6 +121,7 @@ defmodule ObanChoreWeb.DashboardLive do
                       id={job.id}
                       job={job}
                       selected={@selected_tab == {:job, job.id}}
+                      now={@now}
                     />
                   <% end %>
               <% end %>
@@ -142,6 +145,10 @@ defmodule ObanChoreWeb.DashboardLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket) do
+      :timer.send_interval(1000, self(), :tick)
+    end
+
     {:ok,
      assign(socket,
        chores: [],
@@ -149,7 +156,8 @@ defmodule ObanChoreWeb.DashboardLive do
        selected_chore_module: nil,
        jobs: %{},
        chore_jobs: %{},
-       selected_tab: :new
+       selected_tab: :new,
+       now: DateTime.utc_now()
      )}
   end
 
@@ -196,7 +204,8 @@ defmodule ObanChoreWeb.DashboardLive do
        chores: chores,
        counts: fetch_counts(chores),
        jobs: jobs,
-       chore_jobs: chore_jobs
+       chore_jobs: chore_jobs,
+       now: socket.assigns[:now] || DateTime.utc_now()
      )}
   end
 
@@ -286,6 +295,11 @@ defmodule ObanChoreWeb.DashboardLive do
   def handle_info({:oban_chore_log, job_id, message}, socket) do
     send_update(ObanChoreWeb.JobComponent, id: job_id, new_log: message)
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info(:tick, socket) do
+    {:noreply, assign(socket, now: DateTime.utc_now())}
   end
 
   defp fetch_counts(chores) do

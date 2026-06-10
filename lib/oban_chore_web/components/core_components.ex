@@ -386,4 +386,38 @@ defmodule ObanChoreWeb.CoreComponents do
   end
 
   defp normalize_value(assigns), do: assigns
+
+  @doc """
+  Formats the remaining time between `scheduled_at` and `now`.
+  """
+  def format_remaining_time(nil, _now), do: "0s"
+
+  def format_remaining_time(scheduled_at, now) do
+    scheduled_at_dt = to_datetime(scheduled_at)
+    now_dt = to_datetime(now || DateTime.utc_now())
+
+    diff = DateTime.diff(scheduled_at_dt, now_dt)
+
+    cond do
+      diff <= 0 ->
+        "0s"
+
+      diff < 60 ->
+        "#{diff}s"
+
+      diff < 3600 ->
+        min = div(diff, 60)
+        sec = rem(diff, 60)
+        "#{min}m #{sec}s"
+
+      true ->
+        hours = div(diff, 3600)
+        min = div(rem(diff, 3600), 60)
+        "#{hours}h #{min}m"
+    end
+  end
+
+  defp to_datetime(%DateTime{} = dt), do: dt
+  defp to_datetime(%NaiveDateTime{} = ndt), do: DateTime.from_naive!(ndt, "Etc/UTC")
+  defp to_datetime(nil), do: DateTime.utc_now()
 end
