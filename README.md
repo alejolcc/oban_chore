@@ -96,6 +96,7 @@ Replace `use Oban.Worker` with `use ObanChore.Worker` and define your fields:
 defmodule MyApp.Chores.UserBackfill do
   use ObanChore.Worker,
     name: "User Data Backfill",
+    tags: ["backfill"],
     fields: [
       user_id: [type: :integer, required: true],
       reason: [type: :string, default: "Manual Update"]
@@ -132,6 +133,12 @@ defmodule MyAppWeb.Router do
 
     # Mount the dashboard at any path
     oban_chore_dashboard "/chores"
+
+    # Or restrict dashboard access to specific chores by module whitelist
+    oban_chore_dashboard "/ops/critical", chores: [MyApp.Chores.CriticalBackfill]
+
+    # Or restrict chores by tags
+    oban_chore_dashboard "/ops/backfills", tags: ["backfill"]
   end
 end
 ```
@@ -162,6 +169,18 @@ end
 
 > [!NOTE]
 > Currently, to maintain simplicity, the logs are ephemeral. However, storing them in an ETS table to survive Phoenix LiveView tab restarts it could be considered for future iterations.
+
+
+---
+
+## 🕒 Future Scheduling & Countdown
+
+Chores don't have to run immediately. ObanChore allows operators to delay execution:
+
+- **Presets**: Schedule jobs to run in 5 min, 15 min, 30 min, 1 hour, 2 hours, 12 hours, or 24 hours.
+- **Custom Delay**: Input a custom duration in minutes.
+
+Once scheduled, the dashboard displays a **live remaining time countdown** (e.g., `(in 4m 59s)`) in both the job tab list and the active details window, updating every second in real-time.
 
 
 ---
@@ -231,10 +250,12 @@ end
 
 * 🛠️ **Zero-Boilerplate Internal Tooling:** Stop building custom HTML forms and controllers for one-off admin tasks. Define your argument schema once in the backend, and let ObanChore generate the UI.
 * 📡 **Live Execution Streaming:** Leveraging Phoenix PubSub and Telemetry, ObanChore streams logs and status updates from the background process directly back to the user's browser in real-time.
+* 🕒 **Future Scheduling & Real-time Countdown:** Delay chore runs using convenient time presets or custom minute inputs, accompanied by a dynamic real-time countdown.
 * 🔐 **Operational Safety:** 
     * **Idempotency Check:** Automatically detects if a job with the same arguments is already running.
     * **Unique Execution Toggle:** Manually enforce single-job execution via the dashboard UI. (you can override this from the job definition)
     * **Validation:** Full Ecto-backed validation for all chore arguments.
+    * **Dashboard Routing Filters:** Restrict which chores show up on a given dashboard route by specifying a whitelist of chore modules or allowed tags.
 * 🚦 **Concurrency Control:** Piggyback on Oban's powerful concurrency and unique job features to control your operational load.
 
 ## 🏗️ Architectural Philosophy
