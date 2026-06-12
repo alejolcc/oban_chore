@@ -311,4 +311,78 @@ defmodule ObanChoreWeb.DashboardLiveTest do
                "No chore selected"
     end
   end
+
+  describe "runs history" do
+    test "displays previous runs in history tab and allows viewing details" do
+      # Share the database transaction with the LiveView process
+      Ecto.Adapters.SQL.Sandbox.mode(ObanChore.TestRepo, {:shared, self()})
+
+      {:ok, job1} =
+        ObanChore.TestRepo.insert(%Oban.Job{
+          state: "completed",
+          queue: "default",
+          worker: "ObanChoreWeb.DashboardLiveTest.DashboardTestChore",
+          args: %{"username" => "history_user_1", "admin" => true},
+          completed_at: DateTime.utc_now()
+        })
+
+      {:ok, job2} =
+        ObanChore.TestRepo.insert(%Oban.Job{
+          state: "discarded",
+          queue: "default",
+          worker: "ObanChoreWeb.DashboardLiveTest.DashboardTestChore",
+          args: %{"username" => "history_user_2", "admin" => false},
+          errors: [
+            %{
+              "error" => "Chore failed with a mock exception",
+              "attempt" => 1,
+              "at" => DateTime.to_string(DateTime.utc_now())
+            }
+          ],
+          discarded_at: DateTime.utc_now()
+        })
+
+      conn = build_conn()
+      {:ok, view, _html} = live(conn, "/ops/chores")
+
+      chore_module = to_string(DashboardTestChore)
+
+      view
+      |> element("button[data-role=chore-select][data-chore-module=\"#{chore_module}\"]")
+      |> render_click()
+
+      assert has_element?(view, "button[phx-click=select_tab][phx-value-tab=history]")
+
+      html =
+        view
+        |> element("button[phx-click=select_tab][phx-value-tab=history]")
+        |> render_click()
+
+      assert html =~ "#" <> to_string(job1.id)
+      assert html =~ "Completed"
+      assert html =~ "history_user_1"
+
+      assert html =~ "#" <> to_string(job2.id)
+      assert html =~ "Discarded"
+      assert html =~ "history_user_2"
+
+      detail_html =
+        view
+        |> element("button[phx-click=\"view_job_details\"][phx-value-id=\"#{job2.id}\"]")
+        |> render_click()
+
+      assert detail_html =~ "Job ##{job2.id}"
+      assert detail_html =~ "history_user_2"
+      assert detail_html =~ "Error Details"
+      assert detail_html =~ "Chore failed with a mock exception"
+
+      close_html =
+        view
+        |> element("button[phx-click=\"close_tab\"][phx-value-id=\"#{job2.id}\"]")
+        |> render_click()
+
+      refute close_html =~ "Job ##{job2.id}"
+      assert close_html =~ "username"
+    end
+  end
 end

@@ -60,7 +60,7 @@ defmodule ObanChoreWeb.DashboardLive do
             </div>
 
             <!-- Tabs -->
-            <div class="oc-tabs-nav">
+            <div class="oc-tabs-nav" style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
               <button
                 phx-click="select_tab"
                 phx-value-tab="new"
@@ -71,35 +71,64 @@ defmodule ObanChoreWeb.DashboardLive do
               >
                 New Execution
               </button>
+              <button
+                phx-click="select_tab"
+                phx-value-tab="history"
+                class={[
+                  "oc-tab-item",
+                  if(@selected_tab == :history, do: "oc-tab-item--active", else: "")
+                ]}
+              >
+                Runs History
+              </button>
               <%= for job_id <- Map.get(@chore_jobs, @selected_chore_module, []), job = @jobs[job_id] do %>
-                <button
-                  phx-click="select_tab"
-                  phx-value-tab={"job_#{job.id}"}
-                  data-role="job-tab"
-                  data-job-id={job.id}
-                  class={[
-                    "oc-tab-item",
-                    if(@selected_tab == {:job, job.id}, do: "oc-tab-item--active", else: "")
-                  ]}
-                >
-                  <span>
-                    Job #<%= job.id %><%= if job.state == :scheduled, do: " (in " <> ObanChoreWeb.CoreComponents.format_remaining_time(job.scheduled_at, @now) <> ")" %>
-                  </span>
-                  <span class={[
-                    "oc-status-dot",
-                    case job.state do
-                      :executing -> "oc-status-dot--pulse"
-                      _ -> ""
-                    end
-                  ]} style={
-                    case job.state do
-                      :executing -> "background-color: var(--oc-blue-500);"
-                      :available -> "background-color: var(--oc-gray-400);"
-                      :scheduled -> "background-color: var(--oc-amber-400);"
-                      _ -> "background-color: var(--oc-gray-400);"
-                    end
-                  }></span>
-                </button>
+                <div class={[
+                  "oc-tab-wrapper",
+                  if(@selected_tab == {:job, job.id}, do: "oc-tab-wrapper--active", else: "")
+                ]} style="display: flex; align-items: center; border-bottom: 2px solid transparent; transition: border-color 0.2s;">
+                  <button
+                    phx-click="select_tab"
+                    phx-value-tab={"job_#{job.id}"}
+                    data-role="job-tab"
+                    data-job-id={job.id}
+                    class={[
+                      "oc-tab-item",
+                      if(@selected_tab == {:job, job.id}, do: "oc-tab-item--active", else: "")
+                    ]}
+                    style="border-bottom: none; padding-bottom: 1rem; padding-top: 1rem;"
+                  >
+                    <span>
+                      Job #<%= job.id %><%= if job.state == :scheduled, do: " (in " <> ObanChoreWeb.CoreComponents.format_remaining_time(job.scheduled_at, @now) <> ")" %>
+                    </span>
+                    <span class={[
+                      "oc-status-dot",
+                      case job.state do
+                        :executing -> "oc-status-dot--pulse"
+                        _ -> ""
+                      end
+                    ]} style={
+                      case job.state do
+                        :executing -> "background-color: var(--oc-blue-500);"
+                        :available -> "background-color: var(--oc-gray-400);"
+                        :scheduled -> "background-color: var(--oc-amber-400);"
+                        :completed -> "background-color: var(--oc-emerald-500);"
+                        :discarded -> "background-color: var(--oc-rose-500);"
+                        _ -> "background-color: var(--oc-gray-400);"
+                      end
+                    }></span>
+                  </button>
+                  <button
+                    phx-click="close_tab"
+                    phx-value-id={job.id}
+                    class="oc-tab-close"
+                    style="background: transparent; border: none; cursor: pointer; padding: 0.25rem; display: flex; align-items: center; justify-content: center; color: var(--oc-gray-400); margin-left: 0.25rem; transition: color 0.2s;"
+                    aria-label="Close tab"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width: 0.75rem; height: 0.75rem;">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               <% end %>
             </div>
 
@@ -112,6 +141,10 @@ defmodule ObanChoreWeb.DashboardLive do
                   chore={chore_item}
                   selected={@selected_chore_module == chore_item.module and @selected_tab == :new}
                 />
+              <% end %>
+
+              <%= if @selected_tab == :history do %>
+                <.history_view previous_runs={@previous_runs} />
               <% end %>
 
               <%= for {module, job_ids} <- @chore_jobs, job_id <- job_ids, job = @jobs[job_id] do %>
@@ -157,6 +190,7 @@ defmodule ObanChoreWeb.DashboardLive do
        jobs: %{},
        chore_jobs: %{},
        selected_tab: :new,
+       previous_runs: [],
        now: DateTime.utc_now()
      )}
   end
@@ -205,6 +239,7 @@ defmodule ObanChoreWeb.DashboardLive do
        counts: fetch_counts(chores),
        jobs: jobs,
        chore_jobs: chore_jobs,
+       previous_runs: socket.assigns[:previous_runs] || [],
        now: socket.assigns[:now] || DateTime.utc_now()
      )}
   end
@@ -215,7 +250,14 @@ defmodule ObanChoreWeb.DashboardLive do
     allowed_modules = Enum.map(socket.assigns.chores, & &1.module)
 
     if module in allowed_modules do
-      {:noreply, assign(socket, selected_chore_module: module, selected_tab: :new)}
+      previous_runs = ObanChore.list_previous_runs(module)
+
+      {:noreply,
+       assign(socket,
+         selected_chore_module: module,
+         selected_tab: :new,
+         previous_runs: previous_runs
+       )}
     else
       {:noreply, socket}
     end
@@ -227,9 +269,64 @@ defmodule ObanChoreWeb.DashboardLive do
   end
 
   @impl true
+  def handle_event("select_tab", %{"tab" => "history"}, socket) do
+    module = socket.assigns.selected_chore_module
+    previous_runs = ObanChore.list_previous_runs(module)
+    {:noreply, assign(socket, selected_tab: :history, previous_runs: previous_runs)}
+  end
+
+  @impl true
   def handle_event("select_tab", %{"tab" => "job_" <> id_str}, socket) do
     id = String.to_integer(id_str)
     {:noreply, assign(socket, selected_tab: {:job, id})}
+  end
+
+  @impl true
+  def handle_event("close_tab", %{"id" => id_str}, socket) do
+    job_id = String.to_integer(id_str)
+    module = socket.assigns.selected_chore_module
+
+    new_chore_jobs =
+      Map.update(socket.assigns.chore_jobs, module, [], fn job_ids ->
+        List.delete(job_ids, job_id)
+      end)
+
+    next_tab =
+      if socket.assigns.selected_tab == {:job, job_id} do
+        :new
+      else
+        socket.assigns.selected_tab
+      end
+
+    {:noreply, assign(socket, chore_jobs: new_chore_jobs, selected_tab: next_tab)}
+  end
+
+  @impl true
+  def handle_event("view_job_details", %{"id" => id_str}, socket) do
+    job_id = String.to_integer(id_str)
+    job = Map.get(socket.assigns.jobs, job_id) || ObanChore.get_job(job_id)
+
+    if job do
+      if connected?(socket) and not Map.has_key?(socket.assigns.jobs, job_id) do
+        pubsub = ObanChore.pubsub_server()
+        Phoenix.PubSub.subscribe(pubsub, "oban_chore:logs:#{job.id}")
+        Phoenix.PubSub.subscribe(pubsub, "oban_chore:status:#{job.id}")
+      end
+
+      new_jobs = Map.put(socket.assigns.jobs, job.id, job)
+      module = socket.assigns.selected_chore_module
+
+      new_chore_jobs =
+        Map.update(socket.assigns.chore_jobs, module, [job.id], fn job_ids ->
+          if job.id in job_ids, do: job_ids, else: [job.id | job_ids]
+        end)
+
+      {:noreply,
+       socket
+       |> assign(jobs: new_jobs, chore_jobs: new_chore_jobs, selected_tab: {:job, job.id})}
+    else
+      {:noreply, put_flash(socket, :error, "Job ##{job_id} not found.")}
+    end
   end
 
   @impl true
@@ -268,6 +365,13 @@ defmodule ObanChoreWeb.DashboardLive do
           if job.id in job_ids, do: job_ids, else: [job.id | job_ids]
         end)
 
+      socket =
+        if socket.assigns.selected_chore_module == worker_module do
+          assign(socket, previous_runs: ObanChore.list_previous_runs(worker_module))
+        else
+          socket
+        end
+
       {:noreply,
        socket
        |> assign(jobs: new_jobs, chore_jobs: new_chore_jobs, selected_tab: {:job, job.id})}
@@ -285,6 +389,16 @@ defmodule ObanChoreWeb.DashboardLive do
       # Forward to JobComponent
       send_update(ObanChoreWeb.JobComponent, id: job_id, new_state: state)
 
+      socket =
+        if state in [:completed, :discarded, :retryable, :cancelled] and
+             socket.assigns.selected_chore_module do
+          assign(socket,
+            previous_runs: ObanChore.list_previous_runs(socket.assigns.selected_chore_module)
+          )
+        else
+          socket
+        end
+
       {:noreply, assign(socket, jobs: new_jobs)}
     else
       {:noreply, socket}
@@ -300,6 +414,84 @@ defmodule ObanChoreWeb.DashboardLive do
   @impl true
   def handle_info(:tick, socket) do
     {:noreply, assign(socket, now: DateTime.utc_now())}
+  end
+
+  defp history_view(assigns) do
+    ~H"""
+    <div class="oc-card">
+      <div class="oc-card-body" style="padding: 0;">
+        <div class="oc-table-responsive" style="overflow-x: auto;">
+          <table class="oc-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--oc-gray-200); background-color: var(--oc-gray-50);">
+                <th style="padding: 1rem 1.5rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--oc-gray-500); letter-spacing: 0.05em;">Job ID</th>
+                <th style="padding: 1rem 1.5rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--oc-gray-500); letter-spacing: 0.05em;">State</th>
+                <th style="padding: 1rem 1.5rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--oc-gray-500); letter-spacing: 0.05em;">Arguments</th>
+                <th style="padding: 1rem 1.5rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--oc-gray-500); letter-spacing: 0.05em;">Finished At</th>
+                <th style="padding: 1rem 1.5rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--oc-gray-500); letter-spacing: 0.05em;">Actions</th>
+              </tr>
+            </thead>
+            <tbody style="divide-y divide-gray-200">
+              <%= if @previous_runs == [] do %>
+                <tr>
+                  <td colspan="5" style="padding: 3rem 1.5rem; text-align: center; color: var(--oc-gray-500); font-style: italic;">
+                    No previous runs found for this chore.
+                  </td>
+                </tr>
+              <% else %>
+                <%= for run <- @previous_runs do %>
+                  <tr style="border-bottom: 1px solid var(--oc-gray-100); transition: background-color 0.2s;" class="oc-table-row">
+                    <td style="padding: 1rem 1.5rem; font-size: 0.875rem; font-weight: 500; color: var(--oc-gray-900);">
+                      #<%= run.id %>
+                    </td>
+                    <td style="padding: 1rem 1.5rem; font-size: 0.875rem;">
+                      <span class="oc-badge" style={ObanChoreWeb.CoreComponents.state_style(run.state)}>
+                        <%= String.capitalize(to_string(run.state)) %>
+                      </span>
+                    </td>
+                    <td style="padding: 1rem 1.5rem; font-size: 0.875rem; max-width: 20rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                      <div class="oc-flex oc-flex-wrap oc-gap-1" style="gap: 0.25rem;">
+                        <%= for {key, val} <- run.args do %>
+                          <span style="font-family: monospace; font-size: 0.75rem; background-color: var(--oc-gray-100); padding: 0.125rem 0.375rem; border-radius: 0.25rem; color: var(--oc-gray-700);">
+                            <%= key %>: <%= inspect(val) %>
+                          </span>
+                        <% end %>
+                      </div>
+                    </td>
+                    <td style="padding: 1rem 1.5rem; font-size: 0.875rem; color: var(--oc-gray-500);">
+                      <%= format_finished_time(run) %>
+                    </td>
+                    <td style="padding: 1rem 1.5rem; font-size: 0.875rem;">
+                      <button
+                        phx-click="view_job_details"
+                        phx-value-id={run.id}
+                        class="oc-btn"
+                        style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background-color: var(--oc-gray-100); color: var(--oc-gray-700); border: 1px solid var(--oc-gray-200);"
+                      >
+                        Details
+                      </button>
+                    </td>
+                  </tr>
+                <% end %>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp format_finished_time(run) do
+    time =
+      run.completed_at || run.discarded_at || run.cancelled_at || run.attempted_at ||
+        run.inserted_at
+
+    if time do
+      Calendar.strftime(time, "%Y-%m-%d %H:%M:%S UTC")
+    else
+      "N/A"
+    end
   end
 
   defp fetch_counts(chores) do

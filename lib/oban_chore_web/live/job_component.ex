@@ -11,7 +11,7 @@ defmodule ObanChoreWeb.JobComponent do
           <div class="oc-job-header">
             <h3 class="oc-text-sm" style="font-weight: 600; color: var(--oc-gray-900);">Arguments</h3>
             <div class="oc-flex oc-items-center oc-gap-2">
-              <span class="oc-badge" style={state_style(@job.state)}>
+              <span class="oc-badge" style={ObanChoreWeb.CoreComponents.state_style(@job.state)}>
                 <%= String.capitalize(to_string(@job.state)) %>
               </span>
               <span class="oc-text-xs oc-text-gray-500 oc-font-mono">ID: <%= @job.id %></span>
@@ -32,6 +32,23 @@ defmodule ObanChoreWeb.JobComponent do
             <% end %>
           </div>
         </div>
+
+        <%= if @job.errors && @job.errors != [] do %>
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <h3 class="oc-text-sm" style="font-weight: 600; color: var(--oc-red-600); padding-left: 0.25rem;">Error Details</h3>
+            <div style="background-color: var(--oc-rose-50); border: 1px solid rgba(244, 63, 94, 0.2); border-radius: 0.5rem; padding: 1rem; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.875rem; color: var(--oc-rose-900); overflow-x: auto; max-height: 20rem;">
+              <%= for {error, idx} <- Enum.with_index(@job.errors) do %>
+                <div style={"margin-bottom: #{if idx == length(@job.errors) - 1, do: "0", else: "1rem"}; border-bottom: #{if idx == length(@job.errors) - 1, do: "none", else: "1px dashed rgba(244, 63, 94, 0.15)"}; padding-bottom: #{if idx == length(@job.errors) - 1, do: "0", else: "1rem"};"}>
+                  <div style="font-weight: 600; display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                    <span>Attempt #<%= Map.get(error, "attempt") || "?" %></span>
+                    <span style="font-size: 0.75rem; opacity: 0.8;"><%= Map.get(error, "at") || "unknown time" %></span>
+                  </div>
+                  <pre style="margin: 0; white-space: pre-wrap; word-break: break-all; font-family: inherit;"><%= Map.get(error, "error") || "No error message" %></pre>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
 
         <div style="display: flex; flex-direction: column; gap: 1rem;">
           <h3 class="oc-text-sm" style="font-weight: 600; color: var(--oc-gray-900); padding-left: 0.25rem;">Execution Logs</h3>
@@ -82,28 +99,6 @@ defmodule ObanChoreWeb.JobComponent do
        |> assign(logs: [])}
     else
       {:ok, assign(socket, assigns)}
-    end
-  end
-
-  defp state_style(state) do
-    case state do
-      :executing ->
-        "background-color: var(--oc-blue-50); color: var(--oc-blue-700); box-shadow: inset 0 0 0 1px rgba(29, 78, 216, 0.1);"
-
-      :available ->
-        "background-color: var(--oc-gray-50); color: var(--oc-gray-600); box-shadow: inset 0 0 0 1px rgba(107, 114, 128, 0.1);"
-
-      :scheduled ->
-        "background-color: var(--oc-amber-50); color: var(--oc-amber-800); box-shadow: inset 0 0 0 1px rgba(180, 83, 9, 0.2);"
-
-      :completed ->
-        "background-color: var(--oc-emerald-50); color: var(--oc-emerald-800); box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.2);"
-
-      :discarded ->
-        "background-color: var(--oc-rose-50); color: var(--oc-rose-900); box-shadow: inset 0 0 0 1px rgba(244, 63, 94, 0.1);"
-
-      _ ->
-        "background-color: var(--oc-gray-50); color: var(--oc-gray-600); box-shadow: inset 0 0 0 1px rgba(107, 114, 128, 0.1);"
     end
   end
 end
