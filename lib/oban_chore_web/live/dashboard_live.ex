@@ -144,7 +144,11 @@ defmodule ObanChoreWeb.DashboardLive do
               <% end %>
 
               <%= if @selected_tab == :history do %>
-                <.history_view previous_runs={@previous_runs} />
+                <.live_component
+                  module={ObanChoreWeb.HistoryComponent}
+                  id="history-component"
+                  previous_runs={@previous_runs}
+                />
               <% end %>
 
               <%= for {module, job_ids} <- @chore_jobs, job_id <- job_ids, job = @jobs[job_id] do %>
@@ -414,84 +418,6 @@ defmodule ObanChoreWeb.DashboardLive do
   @impl true
   def handle_info(:tick, socket) do
     {:noreply, assign(socket, now: DateTime.utc_now())}
-  end
-
-  defp history_view(assigns) do
-    ~H"""
-    <div class="oc-card">
-      <div class="oc-card-body" style="padding: 0;">
-        <div class="oc-table-responsive" style="overflow-x: auto;">
-          <table class="oc-table" style="width: 100%; border-collapse: collapse; text-align: left;">
-            <thead>
-              <tr style="border-bottom: 1px solid var(--oc-gray-200); background-color: var(--oc-gray-50);">
-                <th style="padding: 1rem 1.5rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--oc-gray-500); letter-spacing: 0.05em;">Job ID</th>
-                <th style="padding: 1rem 1.5rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--oc-gray-500); letter-spacing: 0.05em;">State</th>
-                <th style="padding: 1rem 1.5rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--oc-gray-500); letter-spacing: 0.05em;">Arguments</th>
-                <th style="padding: 1rem 1.5rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--oc-gray-500); letter-spacing: 0.05em;">Finished At</th>
-                <th style="padding: 1rem 1.5rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--oc-gray-500); letter-spacing: 0.05em;">Actions</th>
-              </tr>
-            </thead>
-            <tbody style="divide-y divide-gray-200">
-              <%= if @previous_runs == [] do %>
-                <tr>
-                  <td colspan="5" style="padding: 3rem 1.5rem; text-align: center; color: var(--oc-gray-500); font-style: italic;">
-                    No previous runs found for this chore.
-                  </td>
-                </tr>
-              <% else %>
-                <%= for run <- @previous_runs do %>
-                  <tr style="border-bottom: 1px solid var(--oc-gray-100); transition: background-color 0.2s;" class="oc-table-row">
-                    <td style="padding: 1rem 1.5rem; font-size: 0.875rem; font-weight: 500; color: var(--oc-gray-900);">
-                      #<%= run.id %>
-                    </td>
-                    <td style="padding: 1rem 1.5rem; font-size: 0.875rem;">
-                      <span class="oc-badge" style={ObanChoreWeb.CoreComponents.state_style(run.state)}>
-                        <%= String.capitalize(to_string(run.state)) %>
-                      </span>
-                    </td>
-                    <td style="padding: 1rem 1.5rem; font-size: 0.875rem; max-width: 20rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                      <div class="oc-flex oc-flex-wrap oc-gap-1" style="gap: 0.25rem;">
-                        <%= for {key, val} <- run.args do %>
-                          <span style="font-family: monospace; font-size: 0.75rem; background-color: var(--oc-gray-100); padding: 0.125rem 0.375rem; border-radius: 0.25rem; color: var(--oc-gray-700);">
-                            <%= key %>: <%= inspect(val) %>
-                          </span>
-                        <% end %>
-                      </div>
-                    </td>
-                    <td style="padding: 1rem 1.5rem; font-size: 0.875rem; color: var(--oc-gray-500);">
-                      <%= format_finished_time(run) %>
-                    </td>
-                    <td style="padding: 1rem 1.5rem; font-size: 0.875rem;">
-                      <button
-                        phx-click="view_job_details"
-                        phx-value-id={run.id}
-                        class="oc-btn"
-                        style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background-color: var(--oc-gray-100); color: var(--oc-gray-700); border: 1px solid var(--oc-gray-200);"
-                      >
-                        Details
-                      </button>
-                    </td>
-                  </tr>
-                <% end %>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  defp format_finished_time(run) do
-    time =
-      run.completed_at || run.discarded_at || run.cancelled_at || run.attempted_at ||
-        run.inserted_at
-
-    if time do
-      Calendar.strftime(time, "%Y-%m-%d %H:%M:%S UTC")
-    else
-      "N/A"
-    end
   end
 
   defp fetch_counts(chores) do
