@@ -53,6 +53,8 @@ defmodule ObanChore do
   See the `log/2` documentation below for examples.
   """
 
+  @logs_table :oban_chore_active_logs
+
   @doc """
   Logs a message to the ObanChore dashboard for a specific job.
 
@@ -76,6 +78,24 @@ defmodule ObanChore do
       "oban_chore:logs:#{job_id}",
       {:oban_chore_log, job_id, message}
     )
+
+    # Accumulate logs in ETS rolling buffer (capped at 500 lines)
+    table = logs_table()
+
+    logs =
+      case :ets.lookup(table, job_id) do
+        [{^job_id, current_logs}] -> current_logs
+        [] -> []
+      end
+
+    new_logs =
+      if length(logs) < 500 do
+        [message | logs]
+      else
+        [message | Enum.take(logs, 499)]
+      end
+
+    :ets.insert(table, {job_id, new_logs})
 
     :ok
   end
@@ -190,6 +210,9 @@ defmodule ObanChore do
       job -> %{job | state: String.to_existing_atom(job.state)}
     end
   end
+
+  @doc false
+  def logs_table, do: @logs_table
 
   @doc false
   def pubsub_server do

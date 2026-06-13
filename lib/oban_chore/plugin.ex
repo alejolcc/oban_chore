@@ -28,6 +28,7 @@ defmodule ObanChore.Plugin do
 
   use GenServer
   require Logger
+  import Ecto.Query
 
   @impl Oban.Plugin
   def validate(opts) do
@@ -131,6 +132,10 @@ defmodule ObanChore.Plugin do
         pubsub_server: pubsub_server,
         chores: chores
       }) do
+    if event in [[:oban, :job, :stop], [:oban, :job, :exception]] and Map.has_key?(metadata, :job) do
+      persist_logs_to_meta(metadata.job, oban_name)
+    end
+
     if metadata.conf.name == oban_name do
       jobs = extract_jobs(metadata)
       workers = jobs |> Enum.map(& &1.worker) |> Enum.uniq()
@@ -149,6 +154,23 @@ defmodule ObanChore.Plugin do
     # Guaranteed to exist by validate/1
     pubsub = Keyword.fetch!(opts, :pubsub_server)
     Application.put_env(:oban_chore, :pubsub_server, pubsub)
+
+    # Initialize the ETS table for active logs
+    table = ObanChore.logs_table()
+
+    case :ets.info(table) do
+      :undefined ->
+        :ets.new(table, [
+          :named_table,
+          :public,
+          :set,
+          {:write_concurrency, true},
+          {:read_concurrency, true}
+        ])
+
+      _ ->
+        :ok
+    end
 
     {:ok, %{opts: opts, chores: []}, {:continue, :discover_chores}}
   end
@@ -243,6 +265,38 @@ defmodule ObanChore.Plugin do
 
   # Because Oban Job state have a finite set of values, we can safely convert them to atoms
   defp event_to_state(_event, job), do: String.to_existing_atom(job.state)
+
+  defp persist_logs_to_meta(job, oban_name) do
+    table = ObanChore.logs_table()
+
+    case :ets.info(table) do
+      :undefined ->
+        :ok
+
+      _ ->
+        case :ets.lookup(table, job.id) do
+          [] ->
+            :ok
+
+          [{_, logs}] ->
+            ordered_logs = Enum.reverse(logs)
+            new_meta = Map.put(job.meta || %{}, "oban_chore_logs", ordered_logs)
+            repo = Oban.config(oban_name).repo
+
+            repo.update_all(
+              from(j in Oban.Job, where: j.id == ^job.id),
+              set: [meta: new_meta]
+            )
+
+            :ets.delete(table, job.id)
+            :ok
+        end
+    end
+  rescue
+    error ->
+      Logger.error("[ObanChore] Failed to persist job logs to metadata: #{inspect(error)}")
+      :ok
+  end
 
   # TODO: Improve the discovery
   defp discover_chores(opts) do
