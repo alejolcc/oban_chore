@@ -82,13 +82,27 @@ defmodule ObanChore.IntegrationTest do
     assert active_job.state == :scheduled
   end
 
-  test "persists process dictionary logs to job metadata on job completion", %{
+  test "persists active logs to job metadata on job completion", %{
     oban_name: oban_name
   } do
     changeset = IntegrationTestChore.new(%{user_id: 123})
     {:ok, job} = Oban.insert(oban_name, changeset)
 
-    Process.put(:oban_chore_logs, ["Log 2", "Log 1"])
+    case :ets.info(:oban_chore_active_logs) do
+      :undefined ->
+        :ets.new(:oban_chore_active_logs, [
+          :named_table,
+          :public,
+          :set,
+          {:write_concurrency, true},
+          {:read_concurrency, true}
+        ])
+
+      _ ->
+        :ok
+    end
+
+    :ets.insert(:oban_chore_active_logs, {job.id, ["Log 2", "Log 1"]})
 
     metadata = %{job: job, conf: %{name: oban_name}}
     config = %{oban_name: oban_name, pubsub_server: ObanChore.TestPubSub, chores: []}
@@ -96,5 +110,6 @@ defmodule ObanChore.IntegrationTest do
 
     updated_job = ObanChore.get_job(job.id, oban_name)
     assert updated_job.meta["oban_chore_logs"] == ["Log 1", "Log 2"]
+    assert :ets.lookup(:oban_chore_active_logs, job.id) == []
   end
 end

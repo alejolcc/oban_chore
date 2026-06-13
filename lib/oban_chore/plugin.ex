@@ -155,6 +155,21 @@ defmodule ObanChore.Plugin do
     pubsub = Keyword.fetch!(opts, :pubsub_server)
     Application.put_env(:oban_chore, :pubsub_server, pubsub)
 
+    # Initialize the ETS table for active logs
+    case :ets.info(:oban_chore_active_logs) do
+      :undefined ->
+        :ets.new(:oban_chore_active_logs, [
+          :named_table,
+          :public,
+          :set,
+          {:write_concurrency, true},
+          {:read_concurrency, true}
+        ])
+
+      _ ->
+        :ok
+    end
+
     {:ok, %{opts: opts, chores: []}, {:continue, :discover_chores}}
   end
 
@@ -250,21 +265,28 @@ defmodule ObanChore.Plugin do
   defp event_to_state(_event, job), do: String.to_existing_atom(job.state)
 
   defp persist_logs_to_meta(job, oban_name) do
-    case Process.get(:oban_chore_logs) do
-      nil ->
+    case :ets.info(:oban_chore_active_logs) do
+      :undefined ->
         :ok
 
-      logs ->
-        ordered_logs = Enum.reverse(logs)
-        new_meta = Map.put(job.meta || %{}, "oban_chore_logs", ordered_logs)
-        repo = Oban.config(oban_name).repo
+      _ ->
+        case :ets.lookup(:oban_chore_active_logs, job.id) do
+          [] ->
+            :ok
 
-        repo.update_all(
-          from(j in Oban.Job, where: j.id == ^job.id),
-          set: [meta: new_meta]
-        )
+          [{_, logs}] ->
+            ordered_logs = Enum.reverse(logs)
+            new_meta = Map.put(job.meta || %{}, "oban_chore_logs", ordered_logs)
+            repo = Oban.config(oban_name).repo
 
-        :ok
+            repo.update_all(
+              from(j in Oban.Job, where: j.id == ^job.id),
+              set: [meta: new_meta]
+            )
+
+            :ets.delete(:oban_chore_active_logs, job.id)
+            :ok
+        end
     end
   rescue
     error ->

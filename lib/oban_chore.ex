@@ -77,17 +77,45 @@ defmodule ObanChore do
       {:oban_chore_log, job_id, message}
     )
 
-    # Accumulate logs in the process dictionary as a rolling buffer (capped at 500 lines)
-    # Altough use the process dictionary is discouraged because it can lead to memory leaks and hard to debug if not used carefully, in this case it is a simple and effective way to store logs without needing an external storage or complex state management.
-    logs = Process.get(:oban_chore_logs, [])
+    # Accumulate logs in ETS rolling buffer (capped at 500 lines)
+    ensure_table_exists()
 
-    if length(logs) < 500 do
-      Process.put(:oban_chore_logs, [message | logs])
-    else
-      Process.put(:oban_chore_logs, [message | Enum.take(logs, 499)])
-    end
+    logs =
+      case :ets.lookup(:oban_chore_active_logs, job_id) do
+        [{^job_id, current_logs}] -> current_logs
+        [] -> []
+      end
+
+    new_logs =
+      if length(logs) < 500 do
+        [message | logs]
+      else
+        [message | Enum.take(logs, 499)]
+      end
+
+    :ets.insert(:oban_chore_active_logs, {job_id, new_logs})
 
     :ok
+  end
+
+  defp ensure_table_exists do
+    case :ets.info(:oban_chore_active_logs) do
+      :undefined ->
+        try do
+          :ets.new(:oban_chore_active_logs, [
+            :named_table,
+            :public,
+            :set,
+            {:write_concurrency, true},
+            {:read_concurrency, true}
+          ])
+        rescue
+          ArgumentError -> :ok
+        end
+
+      _ ->
+        :ok
+    end
   end
 
   @doc """
