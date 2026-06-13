@@ -57,7 +57,7 @@ defmodule ObanChore.QueriesTest do
     assert query.from.source == {"oban_jobs", Oban.Job}
 
     query_str = inspect(query)
-    assert query_str =~ "j0.state in [\"available\", \"scheduled\", \"executing\"]"
+    assert query_str =~ "j0.state in [\"available\", \"scheduled\", \"executing\", \"retryable\"]"
     assert query_str =~ "j0.worker == ^\"SomeWorker\""
   end
 
@@ -68,7 +68,7 @@ defmodule ObanChore.QueriesTest do
     assert query.from.source == {"oban_jobs", Oban.Job}
 
     query_str = inspect(query)
-    assert query_str =~ "j0.state in [\"available\", \"scheduled\", \"executing\"]"
+    assert query_str =~ "j0.state in [\"available\", \"scheduled\", \"executing\", \"retryable\"]"
     assert query_str =~ "j0.worker == ^\"SomeWorker\""
     assert query_str =~ "fragment(\"? @> ?\", j0.args, ^"
   end
@@ -80,7 +80,7 @@ defmodule ObanChore.QueriesTest do
     assert query.from.source == {"oban_jobs", Oban.Job}
 
     query_str = inspect(query)
-    assert query_str =~ "j0.state in [\"available\", \"scheduled\", \"executing\"]"
+    assert query_str =~ "j0.state in [\"available\", \"scheduled\", \"executing\", \"retryable\"]"
     assert query_str =~ "j0.worker == ^\"SomeWorker\""
   end
 

@@ -161,7 +161,9 @@ defmodule ObanChoreWeb.ChoreComponent do
 
     unique_opts =
       if socket.assigns.unique_execution and not has_worker_unique?,
-        do: [unique: [period: :infinity, states: [:available, :scheduled, :executing]]],
+        do: [
+          unique: [period: :infinity, states: [:available, :scheduled, :executing, :retryable]]
+        ],
         else: []
 
     opts =

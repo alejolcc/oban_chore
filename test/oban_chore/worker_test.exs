@@ -58,6 +58,16 @@ defmodule ObanChore.WorkerTest do
     def perform(_), do: :ok
   end
 
+  defmodule CustomAttemptsWorker do
+    use ObanChore.Worker,
+      name: "Custom Attempts Chore",
+      max_attempts: 5,
+      fields: []
+
+    @impl Oban.Worker
+    def perform(_), do: :ok
+  end
+
   test "captures description in __chore_info__" do
     info = DescriptiveWorker.__chore_info__()
     assert info.description == "This chore has a helpful description."
@@ -73,6 +83,14 @@ defmodule ObanChore.WorkerTest do
 
     info = MyTestChore.__chore_info__()
     assert info.unique == false
+  end
+
+  test "defaults max_attempts to 1" do
+    assert MyTestChore.__opts__()[:max_attempts] == 1
+  end
+
+  test "allows overriding max_attempts" do
+    assert CustomAttemptsWorker.__opts__()[:max_attempts] == 5
   end
 
   test "correctly maps UI types to Ecto types and casts them" do

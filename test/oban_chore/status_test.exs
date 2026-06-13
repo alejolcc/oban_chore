@@ -43,4 +43,60 @@ defmodule ObanChore.StatusTest do
 
     assert_receive {:oban_chore_state, ^job_id, :executing}
   end
+
+  test "telemetry broadcasts :retryable state on failure if attempts remain" do
+    job_id = 789
+    worker_str = "ObanChore.StatusTest.TestWorker"
+    job = %Oban.Job{id: job_id, worker: worker_str, state: "retryable"}
+
+    Phoenix.PubSub.subscribe(ObanChore.TestPubSub, "oban_chore:status:#{job_id}")
+
+    chores = [%{module: ObanChore.StatusTest.TestWorker, name: "Test Worker"}]
+
+    metadata = %{
+      conf: %{name: Oban},
+      job: job
+    }
+
+    ObanChore.Plugin.handle_telemetry(
+      [:oban, :job, :exception],
+      %{},
+      metadata,
+      %{
+        oban_name: Oban,
+        pubsub_server: ObanChore.TestPubSub,
+        chores: chores
+      }
+    )
+
+    assert_receive {:oban_chore_state, ^job_id, :retryable}
+  end
+
+  test "telemetry broadcasts :discarded state on failure if attempts are exhausted" do
+    job_id = 999
+    worker_str = "ObanChore.StatusTest.TestWorker"
+    job = %Oban.Job{id: job_id, worker: worker_str, state: "discarded"}
+
+    Phoenix.PubSub.subscribe(ObanChore.TestPubSub, "oban_chore:status:#{job_id}")
+
+    chores = [%{module: ObanChore.StatusTest.TestWorker, name: "Test Worker"}]
+
+    metadata = %{
+      conf: %{name: Oban},
+      job: job
+    }
+
+    ObanChore.Plugin.handle_telemetry(
+      [:oban, :job, :exception],
+      %{},
+      metadata,
+      %{
+        oban_name: Oban,
+        pubsub_server: ObanChore.TestPubSub,
+        chores: chores
+      }
+    )
+
+    assert_receive {:oban_chore_state, ^job_id, :discarded}
+  end
 end

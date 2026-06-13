@@ -13,7 +13,8 @@ defmodule ObanChore.Worker do
 
   Since `ObanChore.Worker` is a wrapper around `Oban.Worker`, you can also pass any standard
   Oban option (like `:queue`, `:unique`, `:max_attempts`, etc.). These options are passed
-  directly to the underlying `Oban.Worker`.
+  directly to the underlying `Oban.Worker`. By default, `:max_attempts` is set to `1` for chores,
+  meaning chores fail fast and will not be automatically retried by Oban unless explicitly configured.
 
   ## Field Options
 
@@ -103,6 +104,9 @@ defmodule ObanChore.Worker do
                 "Supported types are :textarea, :select, :checkbox or any Ecto base type."
       end
     end
+
+    # Default max_attempts to 1 unless overridden
+    opts = Keyword.put_new(opts, :max_attempts, 1)
 
     # Determine if the worker has unique options
     has_unique = Keyword.has_key?(opts, :unique)

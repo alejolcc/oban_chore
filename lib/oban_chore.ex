@@ -81,14 +81,14 @@ defmodule ObanChore do
   end
 
   @doc """
-  Counts the number of active jobs (available, scheduled, or executing) for a given worker module.
+  Counts the number of active jobs (available, scheduled, executing, or retryable) for a given worker module.
   """
   def count_running(worker_module, oban_name \\ Oban) do
     config = Oban.config(oban_name)
     repo = config.repo
 
     Oban.Job
-    |> where([j], j.state in ~w(available scheduled executing))
+    |> where([j], j.state in ~w(available scheduled executing retryable))
     |> where([j], j.worker == ^normalize_worker(worker_module))
     |> repo.aggregate(:count, :id)
   end
@@ -96,7 +96,7 @@ defmodule ObanChore do
   @doc """
   Checks if a job with the specified arguments is already in an active state.
 
-  Active states include `available`, `scheduled`, and `executing`.
+  Active states include `available`, `scheduled`, `executing`, and `retryable`.
   """
   def running_with_args?(worker_module, args, oban_name \\ Oban) do
     config = Oban.config(oban_name)
@@ -105,14 +105,14 @@ defmodule ObanChore do
     string_args = Map.new(args, fn {k, v} -> {to_string(k), v} end)
 
     Oban.Job
-    |> where([j], j.state in ~w(available scheduled executing))
+    |> where([j], j.state in ~w(available scheduled executing retryable))
     |> where([j], j.worker == ^normalize_worker(worker_module))
     |> where([j], fragment("? @> ?", j.args, ^string_args))
     |> repo.exists?()
   end
 
   @doc """
-  Lists the active (available, scheduled, executing) jobs for a given worker module.
+  Lists the active (available, scheduled, executing, retryable) jobs for a given worker module.
 
   Returns a list of `%Oban.Job{}` structs with the state converted to an atom.
   """
@@ -121,7 +121,7 @@ defmodule ObanChore do
     repo = config.repo
 
     Oban.Job
-    |> where([j], j.state in ~w(available scheduled executing))
+    |> where([j], j.state in ~w(available scheduled executing retryable))
     |> where([j], j.worker == ^normalize_worker(worker_module))
     |> repo.all()
     |> Enum.map(fn job -> %{job | state: String.to_existing_atom(job.state)} end)
