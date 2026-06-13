@@ -7,9 +7,11 @@ defmodule ObanChore.LoggingTest do
     Application.put_env(:oban_chore, :pubsub_server, pubsub)
     on_exit(fn -> Application.delete_env(:oban_chore, :pubsub_server) end)
 
-    case :ets.info(:oban_chore_active_logs) do
+    table = ObanChore.logs_table()
+
+    case :ets.info(table) do
       :undefined ->
-        :ets.new(:oban_chore_active_logs, [
+        :ets.new(table, [
           :named_table,
           :public,
           :set,
@@ -37,24 +39,26 @@ defmodule ObanChore.LoggingTest do
 
   test "log/2 accumulates logs in the ETS table" do
     job = %Oban.Job{id: 456}
-    :ets.delete(:oban_chore_active_logs, job.id)
+    table = ObanChore.logs_table()
+    :ets.delete(table, job.id)
 
     ObanChore.log(job, "First log")
     ObanChore.log(job, "Second log")
 
-    assert [{456, logs}] = :ets.lookup(:oban_chore_active_logs, job.id)
+    assert [{456, logs}] = :ets.lookup(table, job.id)
     assert logs == ["Second log", "First log"]
   end
 
   test "log/2 caps active logs at 500 lines using a rolling buffer in ETS" do
     job = %Oban.Job{id: 789}
-    :ets.delete(:oban_chore_active_logs, job.id)
+    table = ObanChore.logs_table()
+    :ets.delete(table, job.id)
 
     for i <- 1..510 do
       ObanChore.log(job, "Log #{i}")
     end
 
-    assert [{789, logs}] = :ets.lookup(:oban_chore_active_logs, job.id)
+    assert [{789, logs}] = :ets.lookup(table, job.id)
     assert length(logs) == 500
     assert hd(logs) == "Log 510"
     assert List.last(logs) == "Log 11"

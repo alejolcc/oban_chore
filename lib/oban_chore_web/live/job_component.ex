@@ -112,12 +112,14 @@ defmodule ObanChoreWeb.JobComponent do
   end
 
   defp get_logs(%Oban.Job{id: job_id}) do
-    case :ets.info(:oban_chore_active_logs) do
+    table = ObanChore.logs_table()
+
+    case :ets.info(table) do
       :undefined ->
         []
 
       _ ->
-        case :ets.lookup(:oban_chore_active_logs, job_id) do
+        case :ets.lookup(table, job_id) do
           [{_, logs}] -> logs
           [] -> []
         end

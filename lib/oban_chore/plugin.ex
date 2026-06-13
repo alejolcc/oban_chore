@@ -156,9 +156,11 @@ defmodule ObanChore.Plugin do
     Application.put_env(:oban_chore, :pubsub_server, pubsub)
 
     # Initialize the ETS table for active logs
-    case :ets.info(:oban_chore_active_logs) do
+    table = ObanChore.logs_table()
+
+    case :ets.info(table) do
       :undefined ->
-        :ets.new(:oban_chore_active_logs, [
+        :ets.new(table, [
           :named_table,
           :public,
           :set,
@@ -265,12 +267,14 @@ defmodule ObanChore.Plugin do
   defp event_to_state(_event, job), do: String.to_existing_atom(job.state)
 
   defp persist_logs_to_meta(job, oban_name) do
-    case :ets.info(:oban_chore_active_logs) do
+    table = ObanChore.logs_table()
+
+    case :ets.info(table) do
       :undefined ->
         :ok
 
       _ ->
-        case :ets.lookup(:oban_chore_active_logs, job.id) do
+        case :ets.lookup(table, job.id) do
           [] ->
             :ok
 
@@ -284,7 +288,7 @@ defmodule ObanChore.Plugin do
               set: [meta: new_meta]
             )
 
-            :ets.delete(:oban_chore_active_logs, job.id)
+            :ets.delete(table, job.id)
             :ok
         end
     end

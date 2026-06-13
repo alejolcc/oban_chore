@@ -88,9 +88,11 @@ defmodule ObanChore.IntegrationTest do
     changeset = IntegrationTestChore.new(%{user_id: 123})
     {:ok, job} = Oban.insert(oban_name, changeset)
 
-    case :ets.info(:oban_chore_active_logs) do
+    table = ObanChore.logs_table()
+
+    case :ets.info(table) do
       :undefined ->
-        :ets.new(:oban_chore_active_logs, [
+        :ets.new(table, [
           :named_table,
           :public,
           :set,
@@ -102,7 +104,7 @@ defmodule ObanChore.IntegrationTest do
         :ok
     end
 
-    :ets.insert(:oban_chore_active_logs, {job.id, ["Log 2", "Log 1"]})
+    :ets.insert(table, {job.id, ["Log 2", "Log 1"]})
 
     metadata = %{job: job, conf: %{name: oban_name}}
     config = %{oban_name: oban_name, pubsub_server: ObanChore.TestPubSub, chores: []}
@@ -110,6 +112,6 @@ defmodule ObanChore.IntegrationTest do
 
     updated_job = ObanChore.get_job(job.id, oban_name)
     assert updated_job.meta["oban_chore_logs"] == ["Log 1", "Log 2"]
-    assert :ets.lookup(:oban_chore_active_logs, job.id) == []
+    assert :ets.lookup(table, job.id) == []
   end
 end
