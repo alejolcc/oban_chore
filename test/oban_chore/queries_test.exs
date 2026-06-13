@@ -18,6 +18,11 @@ defmodule ObanChore.QueriesTest do
       []
     end
 
+    def get(query, id, _opts \\ []) do
+      send(self(), {:repo_get, query, id})
+      nil
+    end
+
     # Minimal callbacks for Oban start_link / validation
     def __adapter__ do
       Ecto.Adapters.Postgres
@@ -77,5 +82,25 @@ defmodule ObanChore.QueriesTest do
     query_str = inspect(query)
     assert query_str =~ "j0.state in [\"available\", \"scheduled\", \"executing\"]"
     assert query_str =~ "j0.worker == ^\"SomeWorker\""
+  end
+
+  test "list_previous_runs/3 generates the correct Ecto query", %{oban_name: oban_name} do
+    ObanChore.list_previous_runs(SomeWorker, oban_name)
+
+    assert_receive {:repo_all, query}
+    assert query.from.source == {"oban_jobs", Oban.Job}
+
+    query_str = inspect(query)
+    assert query_str =~ "j0.state in [\"completed\", \"discarded\", \"retryable\", \"cancelled\"]"
+    assert query_str =~ "j0.worker == ^\"SomeWorker\""
+    assert query_str =~ "order_by: [desc: j0.id]"
+    assert query_str =~ "limit: ^20"
+  end
+
+  test "get_job/2 generates the correct Ecto query", %{oban_name: oban_name} do
+    ObanChore.get_job(123, oban_name)
+
+    assert_receive {:repo_get, query, 123}
+    assert query == Oban.Job
   end
 end

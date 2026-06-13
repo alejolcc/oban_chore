@@ -576,3 +576,31 @@ textarea.oc-input {
 .oc-font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 .oc-text-gray-500 { color: var(--oc-gray-500); }
 .oc-text-red-600 { color: var(--oc-red-600); }
+
+/* Tab Wrappers & Close Buttons */
+.oc-tab-wrapper--active {
+  border-color: var(--oc-brand) !important;
+}
+
+.oc-tab-wrapper--active .oc-tab-item {
+  color: var(--oc-brand);
+}
+
+.oc-tab-close {
+  color: var(--oc-gray-400);
+}
+
+.oc-tab-close:hover {
+  color: var(--oc-gray-900) !important;
+}
+
+.oc-table-row:hover {
+  background-color: var(--oc-gray-50);
+}
+
+.oc-sortable-header:hover {
+  color: var(--oc-gray-900) !important;
+  background-color: var(--oc-gray-100);
+}
+
+

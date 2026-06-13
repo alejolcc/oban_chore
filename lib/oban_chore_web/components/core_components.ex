@@ -420,4 +420,29 @@ defmodule ObanChoreWeb.CoreComponents do
   defp to_datetime(%DateTime{} = dt), do: dt
   defp to_datetime(%NaiveDateTime{} = ndt), do: DateTime.from_naive!(ndt, "Etc/UTC")
   defp to_datetime(nil), do: DateTime.utc_now()
+
+  @doc """
+  Returns inline styles for standard job state badges.
+  """
+  def state_style(state) do
+    case state do
+      :executing ->
+        "background-color: var(--oc-blue-50); color: var(--oc-blue-700); box-shadow: inset 0 0 0 1px rgba(29, 78, 216, 0.1);"
+
+      :available ->
+        "background-color: var(--oc-gray-50); color: var(--oc-gray-600); box-shadow: inset 0 0 0 1px rgba(107, 114, 128, 0.1);"
+
+      :scheduled ->
+        "background-color: var(--oc-amber-50); color: var(--oc-amber-800); box-shadow: inset 0 0 0 1px rgba(180, 83, 9, 0.2);"
+
+      :completed ->
+        "background-color: var(--oc-emerald-50); color: var(--oc-emerald-800); box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.2);"
+
+      :discarded ->
+        "background-color: var(--oc-rose-50); color: var(--oc-rose-900); box-shadow: inset 0 0 0 1px rgba(244, 63, 94, 0.1);"
+
+      _ ->
+        "background-color: var(--oc-gray-50); color: var(--oc-gray-600); box-shadow: inset 0 0 0 1px rgba(107, 114, 128, 0.1);"
+    end
+  end
 end

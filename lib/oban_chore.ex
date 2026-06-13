@@ -127,6 +127,70 @@ defmodule ObanChore do
     |> Enum.map(fn job -> %{job | state: String.to_existing_atom(job.state)} end)
   end
 
+  @doc """
+  Lists the previous (completed, discarded, retryable, cancelled) jobs for a given worker module.
+
+  Returns a list of `%Oban.Job{}` structs, ordered by `id` descending, with the state converted to an atom.
+  """
+  def list_previous_runs(
+        worker_module,
+        oban_name \\ Oban,
+        limit \\ 20,
+        sort_by \\ :id,
+        sort_dir \\ :desc
+      ) do
+    config = Oban.config(oban_name)
+    repo = config.repo
+
+    query =
+      Oban.Job
+      |> where([j], j.state in ~w(completed discarded retryable cancelled))
+      |> where([j], j.worker == ^normalize_worker(worker_module))
+      |> limit(^limit)
+
+    query =
+      case sort_by do
+        :id ->
+          order_by(query, [j], [{^sort_dir, j.id}])
+
+        :state ->
+          order_by(query, [j], [{^sort_dir, j.state}])
+
+        :timestamp ->
+          order_by(query, [j], [
+            {^sort_dir,
+             fragment(
+               "coalesce(?, ?, ?, ?, ?)",
+               j.completed_at,
+               j.discarded_at,
+               j.cancelled_at,
+               j.attempted_at,
+               j.inserted_at
+             )}
+          ])
+
+        :started_at ->
+          order_by(query, [j], [{^sort_dir, j.attempted_at}])
+      end
+
+    query
+    |> repo.all()
+    |> Enum.map(fn job -> %{job | state: String.to_existing_atom(job.state)} end)
+  end
+
+  @doc """
+  Gets a job by ID.
+  """
+  def get_job(job_id, oban_name \\ Oban) do
+    config = Oban.config(oban_name)
+    repo = config.repo
+
+    case repo.get(Oban.Job, job_id) do
+      nil -> nil
+      job -> %{job | state: String.to_existing_atom(job.state)}
+    end
+  end
+
   @doc false
   def pubsub_server do
     Application.fetch_env!(:oban_chore, :pubsub_server)

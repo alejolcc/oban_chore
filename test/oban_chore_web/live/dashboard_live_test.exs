@@ -311,4 +311,154 @@ defmodule ObanChoreWeb.DashboardLiveTest do
                "No chore selected"
     end
   end
+
+  describe "runs history" do
+    test "displays previous runs in history tab and allows viewing details" do
+      # Share the database transaction with the LiveView process
+      Ecto.Adapters.SQL.Sandbox.mode(ObanChore.TestRepo, {:shared, self()})
+
+      {:ok, job1} =
+        ObanChore.TestRepo.insert(%Oban.Job{
+          state: "completed",
+          queue: "default",
+          worker: "ObanChoreWeb.DashboardLiveTest.DashboardTestChore",
+          args: %{"username" => "history_user_1", "admin" => true},
+          completed_at: DateTime.utc_now()
+        })
+
+      {:ok, job2} =
+        ObanChore.TestRepo.insert(%Oban.Job{
+          state: "discarded",
+          queue: "default",
+          worker: "ObanChoreWeb.DashboardLiveTest.DashboardTestChore",
+          args: %{"username" => "history_user_2", "admin" => false},
+          errors: [
+            %{
+              "error" => "Chore failed with a mock exception",
+              "attempt" => 1,
+              "at" => DateTime.to_string(DateTime.utc_now())
+            }
+          ],
+          discarded_at: DateTime.utc_now()
+        })
+
+      conn = build_conn()
+      {:ok, view, _html} = live(conn, "/ops/chores")
+
+      chore_module = to_string(DashboardTestChore)
+
+      view
+      |> element("button[data-role=chore-select][data-chore-module=\"#{chore_module}\"]")
+      |> render_click()
+
+      assert has_element?(view, "button[phx-click=select_tab][phx-value-tab=history]")
+
+      html =
+        view
+        |> element("button[phx-click=select_tab][phx-value-tab=history]")
+        |> render_click()
+
+      assert html =~ "#" <> to_string(job1.id)
+      assert html =~ "Completed"
+
+      assert html =~ "#" <> to_string(job2.id)
+      assert html =~ "Discarded"
+
+      detail_html =
+        view
+        |> element("button[phx-click=\"view_job_details\"][phx-value-id=\"#{job2.id}\"]")
+        |> render_click()
+
+      assert detail_html =~ "Job ##{job2.id}"
+      assert detail_html =~ "history_user_2"
+      assert detail_html =~ "Error Details"
+      assert detail_html =~ "Chore failed with a mock exception"
+
+      close_html =
+        view
+        |> element("button[phx-click=\"close_tab\"][phx-value-id=\"#{job2.id}\"]")
+        |> render_click()
+
+      refute close_html =~ "Job ##{job2.id}"
+      assert close_html =~ "username"
+    end
+  end
+
+  describe "runs history sorting" do
+    test "allows sorting previous runs by id, state, started_at, and timestamp" do
+      Ecto.Adapters.SQL.Sandbox.mode(ObanChore.TestRepo, {:shared, self()})
+
+      {:ok, job_a} =
+        ObanChore.TestRepo.insert(%Oban.Job{
+          state: "completed",
+          queue: "default",
+          worker: "ObanChoreWeb.DashboardLiveTest.DashboardTestChore",
+          args: %{"username" => "user_a"},
+          completed_at: DateTime.from_naive!(~N[2026-06-12 10:00:00.000000], "Etc/UTC"),
+          attempted_at: DateTime.from_naive!(~N[2026-06-12 09:30:00.000000], "Etc/UTC")
+        })
+
+      {:ok, job_b} =
+        ObanChore.TestRepo.insert(%Oban.Job{
+          state: "discarded",
+          queue: "default",
+          worker: "ObanChoreWeb.DashboardLiveTest.DashboardTestChore",
+          args: %{"username" => "user_b"},
+          discarded_at: DateTime.from_naive!(~N[2026-06-12 12:00:00.000000], "Etc/UTC"),
+          attempted_at: DateTime.from_naive!(~N[2026-06-12 11:30:00.000000], "Etc/UTC")
+        })
+
+      {:ok, job_c} =
+        ObanChore.TestRepo.insert(%Oban.Job{
+          state: "cancelled",
+          queue: "default",
+          worker: "ObanChoreWeb.DashboardLiveTest.DashboardTestChore",
+          args: %{"username" => "user_c"},
+          cancelled_at: DateTime.from_naive!(~N[2026-06-12 11:00:00.000000], "Etc/UTC"),
+          attempted_at: DateTime.from_naive!(~N[2026-06-12 10:30:00.000000], "Etc/UTC")
+        })
+
+      conn = build_conn()
+      {:ok, view, _html} = live(conn, "/ops/chores")
+
+      chore_module = to_string(DashboardTestChore)
+
+      view
+      |> element("button[data-role=chore-select][data-chore-module=\"#{chore_module}\"]")
+      |> render_click()
+
+      html =
+        view
+        |> element("button[phx-click=select_tab][phx-value-tab=history]")
+        |> render_click()
+
+      assert extract_job_ids(html) == [job_c.id, job_b.id, job_a.id]
+
+      html = view |> element("th[phx-value-column=id]") |> render_click()
+      assert extract_job_ids(html) == [job_a.id, job_b.id, job_c.id]
+
+      html = view |> element("th[phx-value-column=state]") |> render_click()
+      assert extract_job_ids(html) == [job_c.id, job_b.id, job_a.id]
+
+      html = view |> element("th[phx-value-column=state]") |> render_click()
+      assert extract_job_ids(html) == [job_a.id, job_b.id, job_c.id]
+
+      html = view |> element("th[phx-value-column=started_at]") |> render_click()
+      assert extract_job_ids(html) == [job_b.id, job_c.id, job_a.id]
+
+      html = view |> element("th[phx-value-column=started_at]") |> render_click()
+      assert extract_job_ids(html) == [job_a.id, job_c.id, job_b.id]
+
+      html = view |> element("th[phx-value-column=timestamp]") |> render_click()
+      assert extract_job_ids(html) == [job_b.id, job_c.id, job_a.id]
+
+      html = view |> element("th[phx-value-column=timestamp]") |> render_click()
+      assert extract_job_ids(html) == [job_a.id, job_c.id, job_b.id]
+    end
+  end
+
+  defp extract_job_ids(html) do
+    Regex.scan(~r/data-job-id="(\d+)"/, html)
+    |> Enum.map(fn [_, id] -> String.to_integer(id) end)
+  end
 end
