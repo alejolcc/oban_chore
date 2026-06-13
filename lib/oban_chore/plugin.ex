@@ -187,17 +187,20 @@ defmodule ObanChore.Plugin do
     oban_name = if state.opts[:conf], do: state.opts[:conf].name, else: Oban
     handler_id = {:oban_chore_counts, oban_name}
 
-    :telemetry.attach_many(
-      handler_id,
-      [
-        [:oban, :job, :insert, :stop],
-        [:oban, :job, :start],
-        [:oban, :job, :stop],
-        [:oban, :job, :exception]
-      ],
-      &__MODULE__.handle_telemetry/4,
-      %{oban_name: oban_name, pubsub_server: pubsub_server, chores: state.chores}
-    )
+    case :telemetry.attach_many(
+           handler_id,
+           [
+             [:oban, :job, :insert, :stop],
+             [:oban, :job, :start],
+             [:oban, :job, :stop],
+             [:oban, :job, :exception]
+           ],
+           &__MODULE__.handle_telemetry/4,
+           %{oban_name: oban_name, pubsub_server: pubsub_server, chores: state.chores}
+         ) do
+      :ok -> :ok
+      {:error, :already_exists} -> :ok
+    end
 
     {:noreply, state}
   end

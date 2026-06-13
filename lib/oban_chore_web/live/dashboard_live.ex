@@ -285,10 +285,17 @@ defmodule ObanChoreWeb.DashboardLive do
     job_id = String.to_integer(id_str)
     module = socket.assigns.selected_chore_module
 
+    # Unsubscribe from updates to clean up resources
+    pubsub = ObanChore.pubsub_server()
+    Phoenix.PubSub.unsubscribe(pubsub, "oban_chore:logs:#{job_id}")
+    Phoenix.PubSub.unsubscribe(pubsub, "oban_chore:status:#{job_id}")
+
     new_chore_jobs =
       Map.update(socket.assigns.chore_jobs, module, [], fn job_ids ->
         List.delete(job_ids, job_id)
       end)
+
+    new_jobs = Map.delete(socket.assigns.jobs, job_id)
 
     next_tab =
       if socket.assigns.selected_tab == {:job, job_id} do
@@ -297,7 +304,7 @@ defmodule ObanChoreWeb.DashboardLive do
         socket.assigns.selected_tab
       end
 
-    {:noreply, assign(socket, chore_jobs: new_chore_jobs, selected_tab: next_tab)}
+    {:noreply, assign(socket, jobs: new_jobs, chore_jobs: new_chore_jobs, selected_tab: next_tab)}
   end
 
   @impl true
