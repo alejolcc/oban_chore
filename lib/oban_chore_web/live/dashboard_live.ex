@@ -147,7 +147,7 @@ defmodule ObanChoreWeb.DashboardLive do
                 <.live_component
                   module={ObanChoreWeb.HistoryComponent}
                   id="history-component"
-                  previous_runs={@previous_runs}
+                  chore_module={@selected_chore_module}
                 />
               <% end %>
 
@@ -254,13 +254,10 @@ defmodule ObanChoreWeb.DashboardLive do
     allowed_modules = Enum.map(socket.assigns.chores, & &1.module)
 
     if module in allowed_modules do
-      previous_runs = ObanChore.list_previous_runs(module)
-
       {:noreply,
        assign(socket,
          selected_chore_module: module,
-         selected_tab: :new,
-         previous_runs: previous_runs
+         selected_tab: :new
        )}
     else
       {:noreply, socket}
@@ -274,9 +271,7 @@ defmodule ObanChoreWeb.DashboardLive do
 
   @impl true
   def handle_event("select_tab", %{"tab" => "history"}, socket) do
-    module = socket.assigns.selected_chore_module
-    previous_runs = ObanChore.list_previous_runs(module)
-    {:noreply, assign(socket, selected_tab: :history, previous_runs: previous_runs)}
+    {:noreply, assign(socket, selected_tab: :history)}
   end
 
   @impl true
@@ -371,7 +366,8 @@ defmodule ObanChoreWeb.DashboardLive do
 
       socket =
         if socket.assigns.selected_chore_module == worker_module do
-          assign(socket, previous_runs: ObanChore.list_previous_runs(worker_module))
+          send_update(ObanChoreWeb.HistoryComponent, id: "history-component", refresh: true)
+          socket
         else
           socket
         end
@@ -396,9 +392,8 @@ defmodule ObanChoreWeb.DashboardLive do
       socket =
         if state in [:completed, :discarded, :retryable, :cancelled] and
              socket.assigns.selected_chore_module do
-          assign(socket,
-            previous_runs: ObanChore.list_previous_runs(socket.assigns.selected_chore_module)
-          )
+          send_update(ObanChoreWeb.HistoryComponent, id: "history-component", refresh: true)
+          socket
         else
           socket
         end

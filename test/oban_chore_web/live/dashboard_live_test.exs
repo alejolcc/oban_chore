@@ -438,10 +438,10 @@ defmodule ObanChoreWeb.DashboardLiveTest do
       assert extract_job_ids(html) == [job_a.id, job_b.id, job_c.id]
 
       html = view |> element("th[phx-value-column=state]") |> render_click()
-      assert extract_job_ids(html) == [job_b.id, job_a.id, job_c.id]
+      assert extract_job_ids(html) == [job_c.id, job_b.id, job_a.id]
 
       html = view |> element("th[phx-value-column=state]") |> render_click()
-      assert extract_job_ids(html) == [job_c.id, job_a.id, job_b.id]
+      assert extract_job_ids(html) == [job_a.id, job_b.id, job_c.id]
 
       html = view |> element("th[phx-value-column=started_at]") |> render_click()
       assert extract_job_ids(html) == [job_b.id, job_c.id, job_a.id]

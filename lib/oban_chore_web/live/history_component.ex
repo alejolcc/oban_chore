@@ -109,19 +109,29 @@ defmodule ObanChoreWeb.HistoryComponent do
 
   @impl true
   def update(assigns, socket) do
+    chore_module_changed? = assigns[:chore_module] != socket.assigns[:chore_module]
+    refresh? = assigns[:refresh] || false
+
     socket =
       socket
       |> assign_new(:sort_by, fn -> :id end)
       |> assign_new(:sort_dir, fn -> :desc end)
-      |> assign(assigns)
+      |> assign(Map.drop(assigns, [:previous_runs]))
 
-    previous_runs = socket.assigns.previous_runs
-    sort_by = socket.assigns.sort_by
-    sort_dir = socket.assigns.sort_dir
+    if socket.assigns[:sorted_runs] == nil or chore_module_changed? or refresh? do
+      sorted_runs =
+        ObanChore.list_previous_runs(
+          socket.assigns.chore_module,
+          Oban,
+          20,
+          socket.assigns.sort_by,
+          socket.assigns.sort_dir
+        )
 
-    sorted_runs = sort_runs(previous_runs, sort_by, sort_dir)
-
-    {:ok, assign(socket, sorted_runs: sorted_runs)}
+      {:ok, assign(socket, sorted_runs: sorted_runs)}
+    else
+      {:ok, socket}
+    end
   end
 
   @impl true
@@ -146,40 +156,20 @@ defmodule ObanChoreWeb.HistoryComponent do
           {column, :desc}
         end
 
-      sorted_runs = sort_runs(socket.assigns.previous_runs, new_column, new_dir)
+      sorted_runs =
+        ObanChore.list_previous_runs(
+          socket.assigns.chore_module,
+          Oban,
+          20,
+          new_column,
+          new_dir
+        )
 
       {:noreply,
        socket
        |> assign(sort_by: new_column, sort_dir: new_dir, sorted_runs: sorted_runs)}
     else
       {:noreply, socket}
-    end
-  end
-
-  defp sort_runs(runs, sort_by, sort_dir) do
-    Enum.sort_by(runs, &get_sort_value(&1, sort_by), sort_dir)
-  end
-
-  defp get_sort_value(run, :id), do: run.id
-  defp get_sort_value(run, :state), do: to_string(run.state)
-
-  defp get_sort_value(run, :started_at) do
-    if run.attempted_at do
-      DateTime.to_unix(run.attempted_at, :microsecond)
-    else
-      0
-    end
-  end
-
-  defp get_sort_value(run, :timestamp) do
-    time =
-      run.completed_at || run.discarded_at || run.cancelled_at || run.attempted_at ||
-        run.inserted_at
-
-    if time do
-      DateTime.to_unix(time, :microsecond)
-    else
-      0
     end
   end
 
