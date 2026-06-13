@@ -93,10 +93,12 @@ defmodule ObanChoreWeb.JobComponent do
   @impl true
   def update(assigns, socket) do
     if socket.assigns[:job] == nil do
+      persisted_logs = Map.get(assigns.job.meta || %{}, "oban_chore_logs", []) |> Enum.reverse()
+
       {:ok,
        socket
        |> assign(assigns)
-       |> assign(logs: [])}
+       |> assign(logs: persisted_logs)}
     else
       {:ok, assign(socket, assigns)}
     end

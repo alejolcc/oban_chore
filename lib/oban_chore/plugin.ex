@@ -28,6 +28,7 @@ defmodule ObanChore.Plugin do
 
   use GenServer
   require Logger
+  import Ecto.Query
 
   @impl Oban.Plugin
   def validate(opts) do
@@ -131,6 +132,10 @@ defmodule ObanChore.Plugin do
         pubsub_server: pubsub_server,
         chores: chores
       }) do
+    if event in [[:oban, :job, :stop], [:oban, :job, :exception]] and Map.has_key?(metadata, :job) do
+      persist_logs_to_meta(metadata.job, oban_name)
+    end
+
     if metadata.conf.name == oban_name do
       jobs = extract_jobs(metadata)
       workers = jobs |> Enum.map(& &1.worker) |> Enum.uniq()
@@ -243,6 +248,29 @@ defmodule ObanChore.Plugin do
 
   # Because Oban Job state have a finite set of values, we can safely convert them to atoms
   defp event_to_state(_event, job), do: String.to_existing_atom(job.state)
+
+  defp persist_logs_to_meta(job, oban_name) do
+    case Process.get(:oban_chore_logs) do
+      nil ->
+        :ok
+
+      logs ->
+        ordered_logs = Enum.reverse(logs)
+        new_meta = Map.put(job.meta || %{}, "oban_chore_logs", ordered_logs)
+        repo = Oban.config(oban_name).repo
+
+        repo.update_all(
+          from(j in Oban.Job, where: j.id == ^job.id),
+          set: [meta: new_meta]
+        )
+
+        :ok
+    end
+  rescue
+    error ->
+      Logger.error("[ObanChore] Failed to persist job logs to metadata: #{inspect(error)}")
+      :ok
+  end
 
   # TODO: Improve the discovery
   defp discover_chores(opts) do

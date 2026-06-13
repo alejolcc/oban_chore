@@ -77,6 +77,16 @@ defmodule ObanChore do
       {:oban_chore_log, job_id, message}
     )
 
+    # Accumulate logs in the process dictionary as a rolling buffer (capped at 500 lines)
+    # Altough use the process dictionary is discouraged because it can lead to memory leaks and hard to debug if not used carefully, in this case it is a simple and effective way to store logs without needing an external storage or complex state management.
+    logs = Process.get(:oban_chore_logs, [])
+
+    if length(logs) < 500 do
+      Process.put(:oban_chore_logs, [message | logs])
+    else
+      Process.put(:oban_chore_logs, [message | Enum.take(logs, 499)])
+    end
+
     :ok
   end
 
