@@ -94,24 +94,7 @@ defmodule ObanChoreWeb.JobComponent do
   def update(assigns, socket) do
     if socket.assigns[:job] == nil do
       job = assigns.job
-
-      persisted_logs =
-        cond do
-          job.state in [:completed, :discarded, :retryable, :cancelled] ->
-            Map.get(job.meta || %{}, "oban_chore_logs", []) |> Enum.reverse()
-
-          true ->
-            case :ets.info(:oban_chore_active_logs) do
-              :undefined ->
-                []
-
-              _ ->
-                case :ets.lookup(:oban_chore_active_logs, job.id) do
-                  [{_, logs}] -> logs
-                  [] -> []
-                end
-            end
-        end
+      persisted_logs = get_logs(job)
 
       {:ok,
        socket
@@ -119,6 +102,25 @@ defmodule ObanChoreWeb.JobComponent do
        |> assign(logs: persisted_logs)}
     else
       {:ok, assign(socket, assigns)}
+    end
+  end
+
+  defp get_logs(%Oban.Job{state: state} = job)
+       when state in [:completed, :discarded, :retryable, :cancelled] or
+              state in ["completed", "discarded", "retryable", "cancelled"] do
+    Map.get(job.meta || %{}, "oban_chore_logs", []) |> Enum.reverse()
+  end
+
+  defp get_logs(%Oban.Job{id: job_id}) do
+    case :ets.info(:oban_chore_active_logs) do
+      :undefined ->
+        []
+
+      _ ->
+        case :ets.lookup(:oban_chore_active_logs, job_id) do
+          [{_, logs}] -> logs
+          [] -> []
+        end
     end
   end
 end
