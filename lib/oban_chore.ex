@@ -80,8 +80,6 @@ defmodule ObanChore do
     )
 
     # Accumulate logs in ETS rolling buffer (capped at 500 lines)
-    ensure_table_exists()
-
     table = logs_table()
 
     logs =
@@ -100,28 +98,6 @@ defmodule ObanChore do
     :ets.insert(table, {job_id, new_logs})
 
     :ok
-  end
-
-  defp ensure_table_exists do
-    table = logs_table()
-
-    case :ets.info(table) do
-      :undefined ->
-        try do
-          :ets.new(table, [
-            :named_table,
-            :public,
-            :set,
-            {:write_concurrency, true},
-            {:read_concurrency, true}
-          ])
-        rescue
-          ArgumentError -> :ok
-        end
-
-      _ ->
-        :ok
-    end
   end
 
   @doc """
