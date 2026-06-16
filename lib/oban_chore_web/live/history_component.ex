@@ -122,7 +122,7 @@ defmodule ObanChoreWeb.HistoryComponent do
       sorted_runs =
         ObanChore.list_previous_runs(
           socket.assigns.chore_module,
-          Oban,
+          ObanChore.oban_name(),
           20,
           socket.assigns.sort_by,
           socket.assigns.sort_dir
@@ -159,7 +159,7 @@ defmodule ObanChoreWeb.HistoryComponent do
       sorted_runs =
         ObanChore.list_previous_runs(
           socket.assigns.chore_module,
-          Oban,
+          ObanChore.oban_name(),
           20,
           new_column,
           new_dir

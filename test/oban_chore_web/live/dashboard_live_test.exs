@@ -43,7 +43,7 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     # Start Oban
     start_supervised!({
       Oban,
-      name: Oban,
+      name: CustomOban,
       repo: ObanChore.TestRepo,
       queues: [default: 5],
       notifier: Oban.Notifiers.Isolated,
@@ -55,7 +55,9 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     # Start the ObanChore.Plugin with our test chore
     start_supervised!({
       ObanChore.Plugin,
-      chores: [DashboardTestChore, DashboardUniqueChore], pubsub_server: ObanChore.EndpointPubSub
+      chores: [DashboardTestChore, DashboardUniqueChore],
+      pubsub_server: ObanChore.EndpointPubSub,
+      oban_name: CustomOban
     })
 
     # Synchronize with the Plugin's handle_continue

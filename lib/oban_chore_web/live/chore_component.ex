@@ -173,7 +173,9 @@ defmodule ObanChoreWeb.ChoreComponent do
         unique_opts
       end
 
-    case Oban.insert(chore.module.new(casted_args, opts)) do
+    oban_name = ObanChore.oban_name()
+
+    case Oban.insert(oban_name, chore.module.new(casted_args, opts)) do
       {:ok, %{conflict?: conflict?} = job} ->
         # Notify parent to track this job and switch tab
         send(self(), {:job_enqueued, job, chore.module})
