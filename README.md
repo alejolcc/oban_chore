@@ -96,6 +96,7 @@ Replace `use Oban.Worker` with `use ObanChore.Worker` and define your fields:
 defmodule MyApp.Chores.UserBackfill do
   use ObanChore.Worker,
     name: "User Data Backfill",
+    queue: :chores,
     tags: ["backfill"],
     fields: [
       user_id: [type: :integer, required: true],
