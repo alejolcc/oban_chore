@@ -84,7 +84,7 @@ config :my_app, Oban,
     {ObanChore.Plugin, otp_app: :my_app, pubsub_server: MyApp.PubSub},
     # ... other plugins
   ],
-  queues: [default: 10]
+  queues: [default: 10, chores: 10]
 ```
 
 
