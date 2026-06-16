@@ -16,7 +16,7 @@ defmodule ObanChore.MixProject do
       name: "ObanChore",
       source_url: "https://github.com/alejolcc/oban_chore",
       docs: [
-        main: "README",
+        main: "readme",
         extras: ["README.md"]
       ],
       aliases: aliases()
