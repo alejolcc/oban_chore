@@ -219,6 +219,11 @@ defmodule ObanChore do
     Application.fetch_env!(:oban_chore, :pubsub_server)
   end
 
+  @doc false
+  def oban_name do
+    Application.get_env(:oban_chore, :oban_name, Oban)
+  end
+
   defp normalize_worker(worker_module) do
     worker_module
     |> to_string()

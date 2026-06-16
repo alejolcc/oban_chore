@@ -457,6 +457,44 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     end
   end
 
+  test "cancels a scheduled or active job execution" do
+    conn = build_conn()
+    {:ok, view, _html} = live(conn, "/ops/chores")
+
+    # Select the chore
+    chore_module = to_string(DashboardTestChore)
+
+    view
+    |> element("button[data-role=chore-select][data-chore-module=\"#{chore_module}\"]")
+    |> render_click()
+
+    # Fill and submit form
+    view
+    |> form("[id=\"form-#{chore_module}\"]", args: %{username: "cancel_me", admin: "false"})
+    |> render_submit()
+
+    # Assert that the job was inserted in the database and is available
+    assert [job] = ObanChore.TestRepo.all(Oban.Job)
+    assert job.state == "available"
+
+    # Assert we are viewing the job's tab and the cancel button is visible
+    assert has_element?(
+             element(view, ~s(button[data-role="cancel-job-button"][data-job-id="#{job.id}"]))
+           )
+
+    # Click the cancel execution button
+    view
+    |> element(~s(button[data-role="cancel-job-button"][data-job-id="#{job.id}"]))
+    |> render_click()
+
+    # Assert that the job has been cancelled in the database
+    updated_job = ObanChore.TestRepo.get!(Oban.Job, job.id)
+    assert updated_job.state == "cancelled"
+
+    # Assert success flash message is rendered
+    assert render(view) =~ "cancelled successfully"
+  end
+
   defp extract_job_ids(html) do
     Regex.scan(~r/data-job-id="(\d+)"/, html)
     |> Enum.map(fn [_, id] -> String.to_integer(id) end)

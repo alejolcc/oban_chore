@@ -422,6 +422,11 @@ defmodule ObanChoreWeb.DashboardLive do
     {:noreply, assign(socket, now: DateTime.utc_now())}
   end
 
+  @impl true
+  def handle_info({:put_flash, kind, message}, socket) do
+    {:noreply, put_flash(socket, kind, message)}
+  end
+
   defp fetch_counts(chores) do
     Map.new(chores, fn chore -> {chore.module, ObanChore.count_running(chore.module, Oban)} end)
   end

@@ -155,6 +155,9 @@ defmodule ObanChore.Plugin do
     pubsub = Keyword.fetch!(opts, :pubsub_server)
     Application.put_env(:oban_chore, :pubsub_server, pubsub)
 
+    oban_name = if opts[:conf], do: opts[:conf].name, else: Oban
+    Application.put_env(:oban_chore, :oban_name, oban_name)
+
     # Initialize the ETS table for active logs
     table = ObanChore.logs_table()
 

@@ -15,6 +15,19 @@ defmodule ObanChoreWeb.JobComponent do
                 <%= String.capitalize(to_string(@job.state)) %>
               </span>
               <span class="oc-text-xs oc-text-gray-500 oc-font-mono">ID: <%= @job.id %></span>
+              <%= if @job.state in [:available, :scheduled, :executing, :retryable] do %>
+                <button
+                  type="button"
+                  phx-click="cancel_job"
+                  phx-target={@myself}
+                  class="oc-btn oc-btn-danger"
+                  style="padding: 0.25rem 0.5rem; font-size: 0.75rem; line-height: 1rem; border-radius: 0.375rem;"
+                  data-role="cancel-job-button"
+                  data-job-id={@job.id}
+                >
+                  Cancel Execution
+                </button>
+              <% end %>
             </div>
           </div>
           <div class="oc-job-args-grid">
@@ -102,6 +115,28 @@ defmodule ObanChoreWeb.JobComponent do
        |> assign(logs: persisted_logs)}
     else
       {:ok, assign(socket, assigns)}
+    end
+  end
+
+  @impl true
+  def handle_event("cancel_job", _params, socket) do
+    job_id = socket.assigns.job.id
+    oban_name = ObanChore.oban_name()
+
+    case Oban.cancel_job(oban_name, job_id) do
+      :ok ->
+        Phoenix.PubSub.broadcast(
+          ObanChore.pubsub_server(),
+          "oban_chore:status:#{job_id}",
+          {:oban_chore_state, job_id, :cancelled}
+        )
+
+        send(self(), {:put_flash, :info, "Job ##{job_id} cancelled successfully."})
+        {:noreply, socket}
+
+      {:error, _reason} ->
+        send(self(), {:put_flash, :error, "Failed to cancel Job ##{job_id}."})
+        {:noreply, socket}
     end
   end
 
