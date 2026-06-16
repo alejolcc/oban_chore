@@ -166,11 +166,7 @@ defmodule MyApp.Chores.UserBackfill do
   end
 end
 ```
-
-> [!NOTE]
-> Currently, to maintain simplicity, the logs are ephemeral. However, storing them in an ETS table to survive Phoenix LiveView tab restarts it could be considered for future iterations.
-
-
+> **Note:** This should be used to provide real-time visibility to the user, and is not intended to replace the standard Elixir `Logger`.
 ---
 
 ## 🕒 Future Scheduling & Countdown
@@ -260,7 +256,7 @@ end
 
 ## 🏗️ Architectural Philosophy
 
-ObanChore is **not** a replacement for Oban. It is a complementary operational layer. 
+ObanChore is **not** a replacement for Oban / Oban Web. It is a complementary operational layer. 
 
 While Oban excels at automated, system-driven tasks (sending emails, processing webhooks), ObanChore provides the missing interface for **human-driven** tasks. By piggybacking on your existing Oban supervision tree and PostgreSQL queues, ObanChore requires minimal infrastructure overhead while delivering massive operational value.
 
