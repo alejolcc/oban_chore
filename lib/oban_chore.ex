@@ -103,7 +103,7 @@ defmodule ObanChore do
   @doc """
   Counts the number of active jobs (available, scheduled, executing, or retryable) for a given worker module.
   """
-  def count_running(worker_module, oban_name \\ Oban) do
+  def count_running(worker_module, oban_name \\ ObanChore.oban_name()) do
     config = Oban.config(oban_name)
     repo = config.repo
 
@@ -118,7 +118,7 @@ defmodule ObanChore do
 
   Active states include `available`, `scheduled`, `executing`, and `retryable`.
   """
-  def running_with_args?(worker_module, args, oban_name \\ Oban) do
+  def running_with_args?(worker_module, args, oban_name \\ ObanChore.oban_name()) do
     config = Oban.config(oban_name)
     repo = config.repo
 
@@ -136,7 +136,7 @@ defmodule ObanChore do
 
   Returns a list of `%Oban.Job{}` structs with the state converted to an atom.
   """
-  def list_active_jobs(worker_module, oban_name \\ Oban) do
+  def list_active_jobs(worker_module, oban_name \\ ObanChore.oban_name()) do
     config = Oban.config(oban_name)
     repo = config.repo
 
@@ -154,7 +154,7 @@ defmodule ObanChore do
   """
   def list_previous_runs(
         worker_module,
-        oban_name \\ Oban,
+        oban_name \\ ObanChore.oban_name(),
         limit \\ 20,
         sort_by \\ :id,
         sort_dir \\ :desc
@@ -201,7 +201,7 @@ defmodule ObanChore do
   @doc """
   Gets a job by ID.
   """
-  def get_job(job_id, oban_name \\ Oban) do
+  def get_job(job_id, oban_name \\ ObanChore.oban_name()) do
     config = Oban.config(oban_name)
     repo = config.repo
 

@@ -428,7 +428,7 @@ defmodule ObanChoreWeb.DashboardLive do
   end
 
   defp fetch_counts(chores) do
-    Map.new(chores, fn chore -> {chore.module, ObanChore.count_running(chore.module, Oban)} end)
+    Map.new(chores, fn chore -> {chore.module, ObanChore.count_running(chore.module)} end)
   end
 
   defp match_route_opts(router, uri) do

@@ -118,11 +118,16 @@ defmodule ObanChore.Plugin do
 
   Returns a list of maps containing chore metadata.
   """
-  def get_chores do
-    # During testing or if not started within Oban, handle missing process
-    case GenServer.whereis(__MODULE__) do
-      nil -> []
-      pid -> GenServer.call(pid, :get_chores)
+  def get_chores(oban_name \\ ObanChore.oban_name()) do
+    case Oban.Registry.whereis(oban_name, {:plugin, __MODULE__}) do
+      nil ->
+        case GenServer.whereis(__MODULE__) do
+          nil -> []
+          pid -> GenServer.call(pid, :get_chores)
+        end
+
+      pid ->
+        GenServer.call(pid, :get_chores)
     end
   end
 
