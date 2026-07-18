@@ -3,8 +3,6 @@ defmodule ObanChoreWeb.DashboardLive do
   use Phoenix.LiveView, layout: {ObanChoreWeb.Layouts, :dashboard}
   import ObanChoreWeb.CoreComponents
 
-  require Logger
-
   @impl true
   def render(assigns) do
     ~H"""

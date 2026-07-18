@@ -292,11 +292,14 @@ defmodule ObanChore.Plugin do
           [{_, logs}] ->
             ordered_logs = Enum.reverse(logs)
             new_meta = Map.put(job.meta || %{}, "oban_chore_logs", ordered_logs)
-            repo = Oban.config(oban_name).repo
+            config = Oban.config(oban_name)
+            repo = config.repo
+            prefix = config.prefix
 
             repo.update_all(
               from(j in Oban.Job, where: j.id == ^job.id),
-              set: [meta: new_meta]
+              [set: [meta: new_meta]],
+              prefix: prefix
             )
 
             :ets.delete(table, job.id)

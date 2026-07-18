@@ -100,7 +100,8 @@ defmodule ObanChoreWeb.ChoreComponent do
   end
 
   @impl true
-  def handle_event("validate", %{"args" => params} = form_params, socket) do
+  def handle_event("validate", form_params, socket) do
+    params = Map.get(form_params, "args", %{})
     schedule_type = Map.get(form_params, "schedule_type", socket.assigns.schedule_type)
 
     custom_delay_minutes =
@@ -117,7 +118,8 @@ defmodule ObanChoreWeb.ChoreComponent do
   end
 
   @impl true
-  def handle_event("execute", %{"args" => params} = form_params, socket) do
+  def handle_event("execute", form_params, socket) do
+    params = Map.get(form_params, "args", %{})
     chore = socket.assigns.chore
     changeset = chore.module.changeset(params)
 

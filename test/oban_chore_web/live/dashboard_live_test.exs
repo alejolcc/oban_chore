@@ -32,6 +32,16 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     def perform(_), do: :ok
   end
 
+  defmodule DashboardZeroArgsChore do
+    use ObanChore.Worker,
+      name: "Dashboard Zero Args Chore",
+      description: "A test chore with no arguments",
+      fields: []
+
+    @impl Oban.Worker
+    def perform(_), do: :ok
+  end
+
   setup do
     # Set the pubsub server application environment required by ObanChore
     # to the endpoint's running PubSub instance.
@@ -55,7 +65,7 @@ defmodule ObanChoreWeb.DashboardLiveTest do
     # Start the ObanChore.Plugin with our test chore
     start_supervised!({
       ObanChore.Plugin,
-      chores: [DashboardTestChore, DashboardUniqueChore],
+      chores: [DashboardTestChore, DashboardUniqueChore, DashboardZeroArgsChore],
       pubsub_server: ObanChore.EndpointPubSub,
       oban_name: CustomOban
     })
@@ -495,6 +505,33 @@ defmodule ObanChoreWeb.DashboardLiveTest do
 
     # Assert success flash message is rendered
     assert render(view) =~ "cancelled successfully"
+  end
+
+  test "handles validate and execute for zero-args chores without crashing" do
+    conn = build_conn()
+    {:ok, view, _html} = live(conn, "/ops/chores")
+
+    # Select the zero-args chore
+    chore_module = to_string(DashboardZeroArgsChore)
+
+    view
+    |> element("button[data-role=chore-select][data-chore-module=\"#{chore_module}\"]")
+    |> render_click()
+
+    # Trigger a validation event without "args" payload (e.g. changing scheduling)
+    view
+    |> form("[id=\"form-#{chore_module}\"]", %{"schedule_type" => "5_min"})
+    |> render_change()
+
+    # Submit the form (which has no "args" inputs)
+    view
+    |> form("[id=\"form-#{chore_module}\"]", %{"schedule_type" => "immediately"})
+    |> render_submit()
+
+    # Assert that the job was inserted in the database successfully
+    assert [job] = ObanChore.TestRepo.all(Oban.Job)
+    assert job.worker == "ObanChoreWeb.DashboardLiveTest.DashboardZeroArgsChore"
+    assert job.args == %{}
   end
 
   defp extract_job_ids(html) do

@@ -135,7 +135,7 @@ defmodule ObanChoreWeb.JobComponent do
         {:noreply, socket}
 
       {:error, _reason} ->
-        send(self(), {:put_flash, :error, "Failed to cancel Job ##{job_id}."})
+        send(self(), {:put_flash, :error, "Failed to cancel Job ##{inspect(job_id)}."})
         {:noreply, socket}
     end
   end

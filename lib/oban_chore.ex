@@ -106,11 +106,12 @@ defmodule ObanChore do
   def count_running(worker_module, oban_name \\ ObanChore.oban_name()) do
     config = Oban.config(oban_name)
     repo = config.repo
+    prefix = config.prefix
 
     Oban.Job
     |> where([j], j.state in ~w(available scheduled executing retryable))
     |> where([j], j.worker == ^normalize_worker(worker_module))
-    |> repo.aggregate(:count, :id)
+    |> repo.aggregate(:count, :id, prefix: prefix)
   end
 
   @doc """
@@ -121,6 +122,7 @@ defmodule ObanChore do
   def running_with_args?(worker_module, args, oban_name \\ ObanChore.oban_name()) do
     config = Oban.config(oban_name)
     repo = config.repo
+    prefix = config.prefix
 
     string_args = Map.new(args, fn {k, v} -> {to_string(k), v} end)
 
@@ -128,7 +130,7 @@ defmodule ObanChore do
     |> where([j], j.state in ~w(available scheduled executing retryable))
     |> where([j], j.worker == ^normalize_worker(worker_module))
     |> where([j], fragment("? @> ?", j.args, ^string_args))
-    |> repo.exists?()
+    |> repo.exists?(prefix: prefix)
   end
 
   @doc """
@@ -139,11 +141,12 @@ defmodule ObanChore do
   def list_active_jobs(worker_module, oban_name \\ ObanChore.oban_name()) do
     config = Oban.config(oban_name)
     repo = config.repo
+    prefix = config.prefix
 
     Oban.Job
     |> where([j], j.state in ~w(available scheduled executing retryable))
     |> where([j], j.worker == ^normalize_worker(worker_module))
-    |> repo.all()
+    |> repo.all(prefix: prefix)
     |> Enum.map(fn job -> %{job | state: String.to_existing_atom(job.state)} end)
   end
 
@@ -161,6 +164,7 @@ defmodule ObanChore do
       ) do
     config = Oban.config(oban_name)
     repo = config.repo
+    prefix = config.prefix
 
     query =
       Oban.Job
@@ -194,7 +198,7 @@ defmodule ObanChore do
       end
 
     query
-    |> repo.all()
+    |> repo.all(prefix: prefix)
     |> Enum.map(fn job -> %{job | state: String.to_existing_atom(job.state)} end)
   end
 
@@ -204,8 +208,9 @@ defmodule ObanChore do
   def get_job(job_id, oban_name \\ ObanChore.oban_name()) do
     config = Oban.config(oban_name)
     repo = config.repo
+    prefix = config.prefix
 
-    case repo.get(Oban.Job, job_id) do
+    case repo.get(Oban.Job, job_id, prefix: prefix) do
       nil -> nil
       job -> %{job | state: String.to_existing_atom(job.state)}
     end

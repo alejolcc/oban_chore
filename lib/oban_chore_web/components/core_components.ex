@@ -394,7 +394,7 @@ defmodule ObanChoreWeb.CoreComponents do
 
   def format_remaining_time(scheduled_at, now) do
     scheduled_at_dt = to_datetime(scheduled_at)
-    now_dt = to_datetime(now || DateTime.utc_now())
+    now_dt = to_datetime(now)
 
     diff = DateTime.diff(scheduled_at_dt, now_dt)
 
