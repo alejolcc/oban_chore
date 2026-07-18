@@ -67,7 +67,7 @@ Add `oban_chore` to your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:oban_chore, "~> 0.3.0"}
+    {:oban_chore, "~> 0.4.0"}
   ]
 end
 ```
